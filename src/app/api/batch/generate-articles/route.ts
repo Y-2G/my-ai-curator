@@ -54,7 +54,7 @@ async function runBatchProcess(userId: string) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${env.INTERNAL_API_KEY}`,
+          Authorization: `Bearer ${process.env.INTERNAL_API_KEY}`,
         },
         body: JSON.stringify({
           userId,
@@ -182,7 +182,7 @@ async function generateArticle(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.INTERNAL_API_KEY}`,
+        Authorization: `Bearer ${process.env.INTERNAL_API_KEY}`,
       },
       body: JSON.stringify({
         sources: sourcesToUse,
@@ -230,7 +230,8 @@ export async function POST(request: NextRequest) {
     const cronSecret = request.headers.get('X-Cron-Secret');
 
     const isAuthorized =
-      cronSecret === env.CRON_SECRET || authHeader === `Bearer ${env.INTERNAL_API_KEY}`;
+      cronSecret === process.env.CRON_SECRET ||
+      authHeader === `Bearer ${process.env.INTERNAL_API_KEY}`;
 
     if (!isAuthorized && env.NODE_ENV === 'production') {
       logger.security('BATCH_UNAUTHORIZED', {

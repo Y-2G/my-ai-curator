@@ -5,6 +5,7 @@ import { Button } from './Button';
 import { Select } from './Select';
 import { Textarea } from './Textarea';
 import { Card } from './Card';
+import { AuthManager } from '@/lib/auth';
 
 interface UserProfile {
   id: string;
@@ -134,14 +135,24 @@ export default function IntelligentCollectionComponent({
           queryCount: options.queryCount,
           maxResultsPerQuery: options.maxResultsPerQuery,
           includeLatestTrends: options.includeLatestTrends,
-          focusAreas: options.focusAreas ? options.focusAreas.split(',').map(s => s.trim()).filter(Boolean) : [],
+          focusAreas: options.focusAreas
+            ? options.focusAreas
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [],
           searchDepth: options.searchDepth,
         },
       };
 
+      const token = AuthManager.getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const response = await fetch('/api/ai/intelligent-collection', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(requestData),
       });
 
@@ -183,7 +194,7 @@ export default function IntelligentCollectionComponent({
       setSavedArticleId(null);
 
       // 収集結果から上位の結果を記事生成用に変換
-      const sourcesToUse = collectionResult.data.results.slice(0, 5).map(result => ({
+      const sourcesToUse = collectionResult.data.results.slice(0, 5).map((result) => ({
         title: result.title,
         url: result.url,
         summary: result.summary,
@@ -246,16 +257,18 @@ export default function IntelligentCollectionComponent({
       {/* 設定オプション */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            検索クエリ数
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">検索クエリ数</label>
           <select
             value={options.queryCount}
-            onChange={(e) => setOptions(prev => ({ ...prev, queryCount: Number(e.target.value) }))}
+            onChange={(e) =>
+              setOptions((prev) => ({ ...prev, queryCount: Number(e.target.value) }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {[3, 5, 7, 10].map(num => (
-              <option key={num} value={num}>{num}個</option>
+            {[3, 5, 7, 10].map((num) => (
+              <option key={num} value={num}>
+                {num}個
+              </option>
             ))}
           </select>
         </div>
@@ -266,11 +279,15 @@ export default function IntelligentCollectionComponent({
           </label>
           <select
             value={options.maxResultsPerQuery}
-            onChange={(e) => setOptions(prev => ({ ...prev, maxResultsPerQuery: Number(e.target.value) }))}
+            onChange={(e) =>
+              setOptions((prev) => ({ ...prev, maxResultsPerQuery: Number(e.target.value) }))
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {[5, 8, 10, 15].map(num => (
-              <option key={num} value={num}>{num}件</option>
+            {[5, 8, 10, 15].map((num) => (
+              <option key={num} value={num}>
+                {num}件
+              </option>
             ))}
           </select>
         </div>
@@ -278,7 +295,7 @@ export default function IntelligentCollectionComponent({
         <Select
           label="探索深度"
           value={options.searchDepth}
-          onChange={(e) => setOptions(prev => ({ ...prev, searchDepth: e.target.value as any }))}
+          onChange={(e) => setOptions((prev) => ({ ...prev, searchDepth: e.target.value as any }))}
           options={SEARCH_DEPTH_OPTIONS}
         />
 
@@ -286,7 +303,7 @@ export default function IntelligentCollectionComponent({
           <Textarea
             label="特定の分野に絞る（カンマ区切り）"
             value={options.focusAreas}
-            onChange={(e) => setOptions(prev => ({ ...prev, focusAreas: e.target.value }))}
+            onChange={(e) => setOptions((prev) => ({ ...prev, focusAreas: e.target.value }))}
             placeholder="例: React, TypeScript, Web開発"
             rows={2}
             helperText="空白の場合はプロファイル全体から検索"
@@ -298,7 +315,9 @@ export default function IntelligentCollectionComponent({
             <input
               type="checkbox"
               checked={options.includeLatestTrends}
-              onChange={(e) => setOptions(prev => ({ ...prev, includeLatestTrends: e.target.checked }))}
+              onChange={(e) =>
+                setOptions((prev) => ({ ...prev, includeLatestTrends: e.target.checked }))
+              }
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-700">最新トレンドを含める</span>
@@ -317,9 +336,8 @@ export default function IntelligentCollectionComponent({
             {loading ? '🔍 AI収集中...' : '🚀 AI情報収集を開始'}
           </Button>
         </div>
-        
       </div>
-      
+
       {collectionResult && (
         <div className="text-center mt-2">
           <Button
@@ -373,11 +391,15 @@ export default function IntelligentCollectionComponent({
               </div>
               <div>
                 <span className="text-gray-600">平均結果数:</span>
-                <p className="font-semibold">{collectionResult.data.statistics.averageResultsPerQuery.toFixed(1)}件/クエリ</p>
+                <p className="font-semibold">
+                  {collectionResult.data.statistics.averageResultsPerQuery.toFixed(1)}件/クエリ
+                </p>
               </div>
               <div>
                 <span className="text-gray-600">処理時間:</span>
-                <p className="font-semibold">{formatTime(collectionResult.data.statistics.processingTime)}</p>
+                <p className="font-semibold">
+                  {formatTime(collectionResult.data.statistics.processingTime)}
+                </p>
               </div>
             </div>
           </Card>
@@ -410,25 +432,30 @@ export default function IntelligentCollectionComponent({
             <h3 className="text-lg font-semibold mb-3">📰 収集された情報</h3>
             <div className="space-y-4">
               {collectionResult.data.results.slice(0, 15).map((result, _index) => (
-                <div key={result.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div
+                  key={result.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-medium text-gray-900 hover:text-blue-600">
-                      <a 
-                        href={result.url} 
-                        target="_blank" 
+                      <a
+                        href={result.url}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline"
                       >
                         {result.title}
                       </a>
                     </h4>
-                    <span className={`text-xs font-medium ${getRelevanceColor(result.metadata.relevanceScore)}`}>
+                    <span
+                      className={`text-xs font-medium ${getRelevanceColor(result.metadata.relevanceScore)}`}
+                    >
                       関連度: {(result.metadata.relevanceScore * 100).toFixed(0)}%
                     </span>
                   </div>
-                  
+
                   <p className="text-sm text-gray-600 mb-2">{result.summary}</p>
-                  
+
                   <div className="flex justify-between items-center text-xs text-gray-500">
                     <div className="flex space-x-4">
                       <span>ソース: {result.source}</span>
@@ -439,7 +466,7 @@ export default function IntelligentCollectionComponent({
                   </div>
                 </div>
               ))}
-              
+
               {collectionResult.data.results.length > 15 && (
                 <div className="text-center py-4">
                   <p className="text-gray-600">
@@ -456,17 +483,21 @@ export default function IntelligentCollectionComponent({
             <div className="text-sm space-y-2">
               <div>
                 <span className="text-gray-600">利用可能な検索API:</span>
-                <span className="ml-2">{collectionResult.data.metadata.availableSearchApis.join(', ')}</span>
+                <span className="ml-2">
+                  {collectionResult.data.metadata.availableSearchApis.join(', ')}
+                </span>
               </div>
               <div>
                 <span className="text-gray-600">実行時刻:</span>
-                <span className="ml-2">{new Date(collectionResult.data.metadata.generatedAt).toLocaleString('ja-JP')}</span>
+                <span className="ml-2">
+                  {new Date(collectionResult.data.metadata.generatedAt).toLocaleString('ja-JP')}
+                </span>
               </div>
             </div>
           </Card>
         </div>
       )}
-      
+
       {/* 生成された記事 */}
       {generatedArticle && (
         <div className="mt-8 space-y-6">
@@ -478,36 +509,45 @@ export default function IntelligentCollectionComponent({
                 <span>信頼度: {(generatedArticle.confidence * 100).toFixed(0)}%</span>
               </div>
             </div>
-            
+
             <div className="mb-4">
               <p className="text-gray-700 font-medium mb-2">要約:</p>
               <p className="text-gray-600">{generatedArticle.summary}</p>
             </div>
-            
+
             <div className="mb-4">
               <p className="text-gray-700 font-medium mb-2">タグ:</p>
               <div className="flex flex-wrap gap-2">
                 {generatedArticle.tags.map((tag, idx) => (
-                  <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                  <span
+                    key={idx}
+                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                  >
                     {tag}
                   </span>
                 ))}
               </div>
             </div>
-            
+
             <details className="mt-4">
               <summary className="cursor-pointer font-medium text-gray-700 hover:text-gray-900">
                 記事本文を表示
               </summary>
               <div className="mt-4 prose prose-sm max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: generatedArticle.content.replace(/\n/g, '<br />') }} />
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: generatedArticle.content.replace(/\n/g, '<br />'),
+                  }}
+                />
               </div>
             </details>
-            
+
             {savedArticleId && (
               <div className="mt-6 flex items-center justify-between p-4 bg-green-50 rounded-lg">
                 <div>
-                  <p className="text-green-700 font-semibold">✅ 記事がデータベースに保存されました</p>
+                  <p className="text-green-700 font-semibold">
+                    ✅ 記事がデータベースに保存されました
+                  </p>
                   <p className="text-sm text-green-600">ID: {savedArticleId}</p>
                 </div>
                 <Button

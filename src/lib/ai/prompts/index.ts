@@ -86,7 +86,7 @@ export class PromptManager {
       },
     ];
 
-    defaultTemplates.forEach(template => {
+    defaultTemplates.forEach((template) => {
       this.templates.set(template.id, template);
     });
   }
@@ -100,8 +100,7 @@ export class PromptManager {
   }
 
   getTemplatesByCategory(category: PromptTemplate['category']): PromptTemplate[] {
-    return Array.from(this.templates.values())
-      .filter(template => template.category === category);
+    return Array.from(this.templates.values()).filter((template) => template.category === category);
   }
 
   // テンプレートに変数を埋め込む
@@ -112,14 +111,16 @@ export class PromptManager {
     }
 
     let rendered = template.template;
-    
+
     // 変数を置換
-    template.variables.forEach(variable => {
+    template.variables.forEach((variable) => {
       const value = variables[variable];
       if (value === undefined) {
-        throw new Error(`Required variable '${variable}' not provided for template '${templateId}'`);
+        throw new Error(
+          `Required variable '${variable}' not provided for template '${templateId}'`
+        );
       }
-      
+
       const regex = new RegExp(`{{${variable}}}`, 'g');
       rendered = rendered.replace(regex, value);
     });
@@ -127,7 +128,9 @@ export class PromptManager {
     // 未置換の変数がないかチェック
     const unreplacedVars = rendered.match(/{{[^}]+}}/g);
     if (unreplacedVars) {
-      throw new Error(`Unresolved variables in template '${templateId}': ${unreplacedVars.join(', ')}`);
+      throw new Error(
+        `Unresolved variables in template '${templateId}': ${unreplacedVars.join(', ')}`
+      );
     }
 
     return rendered;
@@ -160,7 +163,7 @@ export class PromptManager {
 
 // プロンプトテンプレート定義
 const SEARCH_QUERY_TEMPLATE = `
-あなたは技術情報に精通した検索エキスパートです。
+あなたは最新情報に精通した検索エキスパートです。
 以下のユーザープロファイルに基づいて、最も効果的な検索クエリを生成してください。
 
 # ユーザープロファイル
@@ -171,10 +174,9 @@ const SEARCH_QUERY_TEMPLATE = `
 - 言語設定: {{language}}
 
 # 要件
-1. 各検索ソース（Google、News API、Reddit、GitHub、RSS）に最適化されたクエリを生成
-2. ユーザーの技術レベルに適した内容を見つけられるクエリにする
-3. 新しい情報とトレンドを捉えられるようにする
-4. 重複を避け、多様な観点でクエリを作成
+1. 各検索ソース（Google検索API）に最適化されたクエリを生成
+2. ${new Date().toISOString()}時点での最新の情報とトレンドを捉えられるようにする
+3. 重複を避け、多様な観点でクエリを作成
 
 # 出力形式
 JSON形式で以下の構造で出力してください：
@@ -192,7 +194,7 @@ JSON形式で以下の構造で出力してください：
 `;
 
 const CONTENT_QUALITY_TEMPLATE = `
-あなたは技術コンテンツの品質評価エキスパートです。
+あなたは記事コンテンツの品質評価エキスパートです。
 以下のコンテンツを多角的に評価し、品質スコア（1-10）を算出してください。
 
 # 評価対象コンテンツ
@@ -203,7 +205,7 @@ const CONTENT_QUALITY_TEMPLATE = `
 - コンテンツタイプ: {{contentType}}
 
 # 評価基準
-1. **正確性** (25%): 技術的な正確性、事実の信頼性
+1. **正確性** (25%): 正確性、事実の信頼性
 2. **関連性** (20%): 現在のトレンドや重要性との関連
 3. **新鮮さ** (20%): 情報の新しさ、時代に即しているか
 4. **深度** (20%): 内容の深さ、詳細さ、専門性
@@ -337,7 +339,7 @@ const ARTICLE_GENERATION_TEMPLATE = `
 - 統合・要約はしない
 
 # 重要な指示
-1. タイトルは「今週の技術記事まとめ」「おすすめ技術記事」等のシンプルなキュレーションタイトルにする
+1. タイトルは「${new Date().toISOString}の情報まとめ」等のシンプルなキュレーションタイトルにする
 2. 導入文は2文程度で簡潔に
 3. 本文は提供された各記事を以下の形式で羅列する：
 
