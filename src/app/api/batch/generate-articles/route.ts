@@ -3,6 +3,10 @@ import { logger } from '@/lib/security/logger';
 import { env } from '@/lib/env';
 import { prisma } from '@/lib/db/prisma';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // バッチ処理の設定
 const BATCH_CONFIG = {
   queryCount: 5, // 生成するクエリ数

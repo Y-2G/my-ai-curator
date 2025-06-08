@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RssCollector } from '@/lib/collectors/rss-collector';
 import { getActiveRSSSources, type RSSCategory } from '@/lib/config/rss-sources';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { query, category: _category, limit = 10 } = await request.json();
@@ -9,7 +13,7 @@ export async function POST(request: NextRequest) {
     // Processing real collection request
 
     const rssCollector = new RssCollector();
-    
+
     // 実際のRSS収集を実行
     const results = await rssCollector.collect(query || 'React TypeScript', limit);
 
@@ -17,13 +21,12 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         results,
-        sources: getActiveRSSSources().map(s => s.name),
+        sources: getActiveRSSSources().map((s) => s.name),
         totalFound: results.length,
         query: query || 'React TypeScript',
         timestamp: new Date().toISOString(),
       },
     });
-
   } catch (error) {
     console.error('Real collection error:', error);
     return NextResponse.json(
@@ -41,21 +44,18 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const category = searchParams.get('category') as RSSCategory | null;
-    
+
     const sources = getActiveRSSSources();
-    const filteredSources = category 
-      ? sources.filter(s => s.category === category)
-      : sources;
+    const filteredSources = category ? sources.filter((s) => s.category === category) : sources;
 
     return NextResponse.json({
       success: true,
       data: {
         availableSources: filteredSources,
         totalSources: sources.length,
-        categories: [...new Set(sources.map(s => s.category))],
+        categories: [...new Set(sources.map((s) => s.category))],
       },
     });
-
   } catch (error) {
     console.error('Sources API error:', error);
     return NextResponse.json(

@@ -4,6 +4,10 @@ import { searchQueryGenerator } from '@/lib/ai/search-query-generator';
 import { webSearchCollector } from '@/lib/collectors/web-search-collector';
 import { PrismaClient } from '@prisma/client';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 // リクエストスキーマ

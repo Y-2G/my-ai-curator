@@ -2,12 +2,16 @@ import { NextRequest } from 'next/server';
 import { CategoryModel } from '@/lib/db/models/category';
 import { successResponse, errorResponse } from '@/lib/api/response';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(_request: NextRequest) {
   try {
     const categories = await CategoryModel.findAllWithArticles();
 
     // レスポンスデータの整形
-    const response = categories.map(category => ({
+    const response = categories.map((category) => ({
       id: category.id,
       name: category.name,
       description: category.description,

@@ -3,6 +3,10 @@ import { headers } from 'next/headers';
 import { logger } from '@/lib/security/logger';
 import { env } from '@/lib/env';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 /**
  * Vercel Cronジョブ用エンドポイント
  * vercel.jsonで設定:

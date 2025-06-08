@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { openAIService } from '@/lib/ai/openai-service';
 import type { UserProfile, RawContentData } from '@/lib/ai/openai-service';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { 

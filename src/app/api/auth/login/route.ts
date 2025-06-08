@@ -4,6 +4,10 @@ import { PrismaClient } from '@prisma/client';
 import { SignJWT } from 'jose';
 import { verifyPassword } from '@/lib/security/password';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 // ログインリクエストのスキーマ

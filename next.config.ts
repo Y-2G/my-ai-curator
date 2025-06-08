@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
   },
   // ページ設定
   pageExtensions: ['ts', 'tsx', 'js', 'jsx'],
+  // Output設定
+  output: 'standalone',
+  // 静的生成の設定
+  trailingSlash: false,
 };
 
 export default nextConfig;

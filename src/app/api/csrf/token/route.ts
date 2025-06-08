@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCSRFToken } from '@/lib/security/csrf';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(_request: NextRequest) {
   try {
     const token = generateCSRFToken();
-    
+
     const response = NextResponse.json({
       success: true,
       token,
@@ -21,9 +25,12 @@ export async function GET(_request: NextRequest) {
     return response;
   } catch (error) {
     console.error('CSRF token generation failed:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to generate CSRF token',
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to generate CSRF token',
+      },
+      { status: 500 }
+    );
   }
 }
