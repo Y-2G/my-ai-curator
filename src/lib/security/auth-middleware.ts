@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 
 // 認証が必要なAPIパスの定義
-const PROTECTED_PATHS = ['/api/admin', '/api/articles/generate', '/api/ai'];
+const PROTECTED_PATHS = ['/api/admin', '/api/articles/generate', '/api/ai', '/api/batch', '/api/users'];
 
 // 管理者専用APIパスの定義
 const ADMIN_ONLY_PATHS = ['/api/admin', '/api/debug', '/api/users'];
@@ -16,9 +16,9 @@ interface JwtPayload {
 
 export class AuthMiddleware {
   /**
-   * JWT トークンの検証
+   * JWT トークンの検証 (Edge Runtime対応)
    */
-  static verifyToken(token: string): JwtPayload | null {
+  static async verifyToken(token: string): Promise<JwtPayload | null> {
     try {
       const secret = process.env.JWT_SECRET;
       if (!secret) {
@@ -26,15 +26,15 @@ export class AuthMiddleware {
         return null;
       }
 
-      const decoded = jwt.verify(token, secret) as JwtPayload;
+      const secretKey = new TextEncoder().encode(secret);
+      const { payload } = await jwtVerify(token, secretKey);
 
-      // 有効期限チェック
-      if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
-        console.warn('Token has expired');
-        return null;
-      }
-
-      return decoded;
+      return {
+        userId: payload.userId as string,
+        email: payload.email as string,
+        role: payload.role as string,
+        exp: payload.exp as number,
+      };
     } catch (error) {
       console.error('Token verification failed:', error);
       return null;
@@ -44,18 +44,32 @@ export class AuthMiddleware {
   /**
    * リクエストから認証情報を抽出
    */
-  static extractAuthInfo(request: NextRequest): JwtPayload | null {
+  static async extractAuthInfo(request: NextRequest): Promise<JwtPayload | null> {
     // Authorization ヘッダーから取得
     const authHeader = request.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      return this.verifyToken(token);
+      
+      // 内部API認証チェック
+      const internalApiKey = process.env.INTERNAL_API_KEY;
+      if (internalApiKey && token === internalApiKey) {
+        // 内部API用の仮想JWTペイロードを返す
+        return {
+          userId: 'internal',
+          email: 'internal@system',
+          role: 'admin',
+          exp: Math.floor(Date.now() / 1000) + 3600, // 1時間有効
+        };
+      }
+      
+      // 通常のJWT検証
+      return await this.verifyToken(token);
     }
 
     // Cookie から取得（フォールバック）
     const cookieToken = request.cookies.get('auth-token')?.value;
     if (cookieToken) {
-      return this.verifyToken(cookieToken);
+      return await this.verifyToken(cookieToken);
     }
 
     return null;
@@ -78,7 +92,7 @@ export class AuthMiddleware {
   /**
    * 認証ミドルウェア
    */
-  static authenticate(request: NextRequest): NextResponse | null {
+  static async authenticate(request: NextRequest): Promise<NextResponse | null> {
     const pathname = request.nextUrl.pathname;
 
     // 保護されていないパスはスキップ
@@ -87,7 +101,7 @@ export class AuthMiddleware {
     }
 
     // 認証情報を取得
-    const authInfo = this.extractAuthInfo(request);
+    const authInfo = await this.extractAuthInfo(request);
 
     if (!authInfo) {
       return NextResponse.json(
@@ -125,10 +139,10 @@ export class AuthMiddleware {
 /**
  * API ルートで使用するための認証ヘルパー
  */
-export function requireAuth(
+export async function requireAuth(
   request: NextRequest
-): { userId: string; email: string } | NextResponse {
-  const authInfo = AuthMiddleware.extractAuthInfo(request);
+): Promise<{ userId: string; email: string } | NextResponse> {
+  const authInfo = await AuthMiddleware.extractAuthInfo(request);
 
   if (!authInfo) {
     return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
@@ -143,10 +157,10 @@ export function requireAuth(
 /**
  * 管理者権限が必要なAPI用のヘルパー
  */
-export function requireAdmin(
+export async function requireAdmin(
   request: NextRequest
-): { userId: string; email: string } | NextResponse {
-  const authInfo = AuthMiddleware.extractAuthInfo(request);
+): Promise<{ userId: string; email: string } | NextResponse> {
+  const authInfo = await AuthMiddleware.extractAuthInfo(request);
 
   if (!authInfo) {
     return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });

@@ -4,7 +4,7 @@ import { applyRateLimit } from './lib/security/rate-limiter';
 import { logger } from './lib/security/logger';
 import { env } from './lib/env';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const startTime = Date.now();
 
@@ -49,7 +49,7 @@ export function middleware(request: NextRequest) {
 
     // 強化された認証チェック（API）- 全環境で実施（開発環境では警告レベル調整）
     if (pathname.startsWith('/api/')) {
-      const authResponse = AuthMiddleware.authenticate(request);
+      const authResponse = await AuthMiddleware.authenticate(request);
       if (authResponse) {
         const logLevel = env.NODE_ENV === 'production' ? 'warn' : 'info';
         logger[logLevel]('AUTHENTICATION_FAILED', {

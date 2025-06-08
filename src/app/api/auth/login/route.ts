@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { SignJWT } from 'jose';
 import { verifyPassword } from '@/lib/security/password';
 
 const prisma = new PrismaClient();
@@ -59,16 +59,17 @@ export async function POST(request: NextRequest) {
 
     // Login successful
 
-    // JWTトークンの生成
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email,
-        name: user.name,
-      },
-      JWT_SECRET,
-      { expiresIn: '1h' }
-    );
+    // JWTトークンの生成 (Edge Runtime対応)
+    const secretKey = new TextEncoder().encode(JWT_SECRET);
+    const token = await new SignJWT({ 
+      userId: user.id, 
+      email: user.email,
+      name: user.name,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(secretKey);
 
     // レスポンスからパスワードを除外
     const { password: _, ...userWithoutPassword } = user;

@@ -163,7 +163,14 @@ function AdminPageContent() {
       setError(null);
       // Loading admin profile
 
-      const response = await fetch(`/api/users/${userId}`);
+      // 認証トークンを取得
+      const token = AuthManager.getToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/users/${userId}`, { headers });
       // Check response status
 
       if (!response.ok) {
@@ -222,9 +229,16 @@ function AdminPageContent() {
         },
       };
 
+      // 認証トークンを取得
+      const token = AuthManager.getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`/api/users/${authUser.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(updateData),
       });
 
@@ -368,9 +382,16 @@ function AdminPageContent() {
 
       // Step 1: AI情報収集
       setPipelineStatus('🧠 AI検索クエリを生成中...');
+      // 認証トークンを取得
+      const token = AuthManager.getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const collectionResponse = await fetch('/api/ai/intelligent-collection', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           userId: authUser.id,
           options: {
@@ -418,9 +439,15 @@ function AdminPageContent() {
         preferredStyle: user?.profile?.preferredStyle || 'balanced',
       };
 
+      // 認証トークンを取得
+      const headers2: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers2['Authorization'] = `Bearer ${token}`;
+      }
+
       const articleResponse = await fetch('/api/articles/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers2,
         body: JSON.stringify({
           sources: sourcesToUse,
           userProfile: articleProfile,
