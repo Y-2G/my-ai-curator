@@ -10,18 +10,18 @@ const prisma = new PrismaClient();
 export async function GET(_request: NextRequest) {
   try {
     // 管理者ユーザーの情報を取得
-    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminEmail = process.env.ADMIN_USER_ID;
     if (!adminEmail) {
       return NextResponse.json(
         {
           success: false,
-          error: 'ADMIN_EMAIL environment variable not configured',
-          message: 'Please set ADMIN_EMAIL environment variable',
+          error: 'ADMIN_USER_ID environment variable not configured',
+          message: 'Please set ADMIN_USER_ID environment variable',
         },
         { status: 500 }
       );
     }
-    
+
     const adminUser = await prisma.user.findUnique({
       where: { email: adminEmail },
       include: {
