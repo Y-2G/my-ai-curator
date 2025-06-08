@@ -65,12 +65,24 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Article save error:', error);
+    // 詳細なエラーログ
+    console.error('Article save error:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      env: process.env.NODE_ENV,
+      databaseUrl: process.env.DATABASE_URL ? 'SET' : 'NOT_SET',
+      timestamp: new Date().toISOString(),
+    });
+    
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to save article',
         message: error instanceof Error ? error.message : 'Unknown error',
+        debug: process.env.NODE_ENV === 'development' ? {
+          error: error instanceof Error ? error.message : error,
+          stack: error instanceof Error ? error.stack : undefined,
+        } : undefined,
       },
       { status: 500 }
     );
