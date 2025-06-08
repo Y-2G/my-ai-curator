@@ -1,4 +1,19 @@
 {
+  "buildCommand": "npm run build",
+  "build": {
+    "env": {
+      "BUILD_TIME": "true",
+      "SKIP_ENV_VALIDATION": "true"
+    }
+  },
+  "functions": {
+    "src/app/api/*/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/*/*/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/daily-articles",

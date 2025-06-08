@@ -97,11 +97,15 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     const { id } = await context.params;
     const body = await request.json();
 
-    // Processing user update request
+    console.log('PUT /api/users/[id] - Request received:', {
+      userId: id,
+      body,
+      timestamp: new Date().toISOString(),
+    });
 
     // バリデーション
     const validatedData = UpdateUserSchema.parse(body);
-    // Data validation successful
+    console.log('Validation successful:', validatedData);
 
     // ユーザーの存在確認
     const existingUser = await prisma.user.findUnique({
@@ -121,73 +125,121 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       );
     }
 
-    // User updated successfully
+    // トランザクションで一括更新
+    const userData = await prisma.$transaction(async (tx) => {
+      console.log('Starting user update transaction for:', id);
+      console.log('Update data:', validatedData);
 
-    // UserInterestの更新（キーワードがある場合）
-    if (validatedData.interests?.keywords) {
-      // 既存のUserInterestを取得
-      const existingInterests = await prisma.userInterest.findMany({
-        where: { userId: id },
+      // ユーザー情報の更新
+      const updatedUser = await tx.user.update({
+        where: { id },
+        data: {
+          ...(validatedData.name && { name: validatedData.name }),
+          ...(validatedData.profile && { profile: validatedData.profile }),
+          ...(validatedData.interests && { interests: validatedData.interests }),
+        },
+      });
+      
+      console.log('User updated:', updatedUser.updatedAt);
+
+      // UserInterestの更新（キーワードがある場合）
+      if (validatedData.interests?.keywords) {
+        console.log('Updating keywords:', validatedData.interests.keywords);
+        
+        // 既存のUserInterestを取得
+        const existingInterests = await tx.userInterest.findMany({
+          where: { userId: id },
+        });
+
+        const existingKeywords = existingInterests.map((ui) => ui.keyword);
+        const newKeywords = validatedData.interests.keywords.filter(
+          (keyword) => !existingKeywords.includes(keyword)
+        );
+
+        console.log('Existing keywords:', existingKeywords);
+        console.log('New keywords to add:', newKeywords);
+
+        // 新しいキーワードを追加
+        if (newKeywords.length > 0) {
+          await tx.userInterest.createMany({
+            data: newKeywords.map((keyword) => ({
+              userId: id,
+              keyword,
+              weight: 1.0,
+            })),
+          });
+          console.log('Added new keywords:', newKeywords);
+        }
+
+        // 削除されたキーワードを削除
+        const deletedKeywords = existingKeywords.filter(
+          (keyword) => !validatedData.interests!.keywords!.includes(keyword)
+        );
+
+        console.log('Keywords to delete:', deletedKeywords);
+
+        if (deletedKeywords.length > 0) {
+          await tx.userInterest.deleteMany({
+            where: {
+              userId: id,
+              keyword: { in: deletedKeywords },
+            },
+          });
+          console.log('Deleted keywords:', deletedKeywords);
+        }
+      }
+
+      // 更新後のユーザー情報を取得
+      const finalUserData = await tx.user.findUnique({
+        where: { id },
+        include: {
+          userInterests: {
+            orderBy: { weight: 'desc' },
+            take: 20,
+          },
+        },
       });
 
-      const existingKeywords = existingInterests.map((ui) => ui.keyword);
-      const newKeywords = validatedData.interests.keywords.filter(
-        (keyword) => !existingKeywords.includes(keyword)
-      );
+      console.log('Transaction completed, final user data:', {
+        id: finalUserData?.id,
+        name: finalUserData?.name,
+        interests: finalUserData?.interests,
+        userInterestsCount: finalUserData?.userInterests.length,
+      });
 
-      // 新しいキーワードを追加
-      if (newKeywords.length > 0) {
-        await prisma.userInterest.createMany({
-          data: newKeywords.map((keyword) => ({
-            userId: id,
-            keyword,
-            weight: 1.0,
-          })),
-        });
-      }
+      return finalUserData;
+    });
 
-      // 削除されたキーワードを削除
-      const deletedKeywords = existingKeywords.filter(
-        (keyword) => !validatedData.interests!.keywords!.includes(keyword)
-      );
-
-      if (deletedKeywords.length > 0) {
-        await prisma.userInterest.deleteMany({
-          where: {
-            userId: id,
-            keyword: { in: deletedKeywords },
-          },
-        });
-      }
+    if (!userData) {
+      console.error('Transaction completed but userData is null');
+      throw new Error('Failed to retrieve updated user data');
     }
 
-    // 更新後のユーザー情報を取得
-    const userData = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        userInterests: {
-          orderBy: { weight: 'desc' },
-          take: 20,
-        },
-      },
+    const responseData = {
+      id: userData!.id,
+      email: userData!.email,
+      name: userData!.name,
+      profile: userData!.profile,
+      interests: userData!.interests,
+      userInterests: userData!.userInterests.map((ui) => ({
+        id: ui.id,
+        keyword: ui.keyword,
+        weight: ui.weight,
+        lastUsed: ui.lastUsed.toISOString(),
+      })),
+      updatedAt: userData!.updatedAt.toISOString(),
+    };
+
+    console.log('PUT /api/users/[id] - Sending response:', {
+      success: true,
+      data: responseData,
+      timestamp: new Date().toISOString(),
     });
 
     return NextResponse.json({
       success: true,
-      data: {
-        id: userData!.id,
-        email: userData!.email,
-        name: userData!.name,
-        profile: userData!.profile,
-        interests: userData!.interests,
-        userInterests: userData!.userInterests.map((ui) => ({
-          id: ui.id,
-          keyword: ui.keyword,
-          weight: ui.weight,
-          lastUsed: ui.lastUsed.toISOString(),
-        })),
-        updatedAt: userData!.updatedAt.toISOString(),
-      },
+      data: responseData,
+      message: 'User updated successfully',
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -202,15 +254,22 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       );
     }
 
-    console.error('PUT /api/users/[id] - Update user error:', error);
+    console.error('PUT /api/users/[id] - Update user error:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: await context.params.then(p => p.id),
+      timestamp: new Date().toISOString(),
+    });
+    
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to update user',
-        message:
-          process.env.NODE_ENV === 'development' && error instanceof Error
-            ? error.message
-            : 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        debug: process.env.NODE_ENV === 'development' ? {
+          error: error instanceof Error ? error.message : error,
+          stack: error instanceof Error ? error.stack : undefined,
+        } : undefined,
       },
       { status: 500 }
     );
