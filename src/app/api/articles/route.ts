@@ -1,6 +1,4 @@
 import { NextRequest } from 'next/server';
-import { ArticleModel } from '@/lib/db/models/article';
-import { successResponse, errorResponse } from '@/lib/api/response';
 
 // ランタイム設定
 export const runtime = 'nodejs';
@@ -8,6 +6,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    // Dynamic imports to avoid build-time initialization
+    const { ArticleModel } = await import('@/lib/db/models/article');
+    const { successResponse } = await import('@/lib/api/response');
+
     // クエリパラメータの取得
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
@@ -66,6 +68,7 @@ export async function GET(request: NextRequest) {
     return successResponse(responseData);
   } catch (error) {
     console.error('Articles API Error:', error);
+    const { errorResponse } = await import('@/lib/api/response');
     return errorResponse('記事の取得に失敗しました');
   }
 }

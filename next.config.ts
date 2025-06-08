@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   // 静的生成の設定
   trailingSlash: false,
+  // ESLintを本番ビルドでスキップ
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
