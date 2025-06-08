@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { articleService } from '@/lib/db/services/article-service';
 
 // ランタイム設定
 export const runtime = 'nodejs';
@@ -7,6 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    // Dynamic import to avoid build-time initialization
+    const { articleService } = await import('@/lib/db/services/article-service');
+    
     const body = await request.json();
     const {
       title,
@@ -91,6 +93,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Dynamic import to avoid build-time initialization
+    const { articleService } = await import('@/lib/db/services/article-service');
+    
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');

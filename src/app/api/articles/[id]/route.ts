@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ArticleModel } from '@/lib/db/models/article';
-import { articleService } from '@/lib/db/services/article-service';
 
 // ランタイム設定
 export const runtime = 'nodejs';
@@ -8,6 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Dynamic import to avoid build-time initialization
+    const { ArticleModel } = await import('@/lib/db/models/article');
+    
     const params = await context.params;
     const { id } = params;
 
@@ -78,6 +79,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Dynamic import to avoid build-time initialization
+    const { articleService } = await import('@/lib/db/services/article-service');
+    
     const params = await context.params;
     const { id } = params;
     const updateData = await request.json();
@@ -112,6 +116,9 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Dynamic import to avoid build-time initialization
+    const { articleService } = await import('@/lib/db/services/article-service');
+    
     const params = await context.params;
     const { id } = params;
 
