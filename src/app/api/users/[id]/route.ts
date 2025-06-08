@@ -208,6 +208,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       });
 
       return finalUserData;
+    }, {
+      timeout: 10000, // 10秒にタイムアウトを延長
     });
 
     if (!userData) {

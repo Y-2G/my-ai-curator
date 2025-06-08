@@ -18,6 +18,11 @@ export const prisma =
       // 本番環境でのログを最小化
       errorFormat: 'minimal',
     }),
+    // トランザクションとクエリのタイムアウト設定
+    transactionOptions: {
+      maxWait: 30000, // 30秒
+      timeout: 30000, // 30秒
+    },
   });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

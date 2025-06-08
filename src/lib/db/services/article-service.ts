@@ -45,6 +45,9 @@ export class ArticleService {
     } = input;
 
     return await prisma.$transaction(async (tx) => {
+      console.log('Starting article creation transaction');
+      const startTime = Date.now();
+      
       // カテゴリの取得または作成
       let categoryRecord = null;
       if (category) {
@@ -72,42 +75,43 @@ export class ArticleService {
         },
       });
 
-      // ソースの作成
-      if (sources.length > 0) {
-        await tx.source.createMany({
+      // ソース作成とタグ処理を並列実行
+      await Promise.all([
+        // ソースの作成
+        sources.length > 0 ? tx.source.createMany({
           data: sources.map((source) => ({
             articleId: article.id,
             title: source.title,
             url: source.url,
             type: source.type,
           })),
-        });
-      }
+        }) : Promise.resolve(),
+        
+        // タグの作成・関連付け
+        tags.length > 0 ? (async () => {
+          // タグを作成または取得
+          const tagRecords = await Promise.all(
+            tags.map((tagName) =>
+              tx.tag.upsert({
+                where: { name: tagName },
+                update: {},
+                create: { name: tagName },
+              })
+            )
+          );
 
-      // タグの作成・関連付け
-      if (tags.length > 0) {
-        // タグを作成または取得
-        const tagRecords = await Promise.all(
-          tags.map((tagName) =>
-            tx.tag.upsert({
-              where: { name: tagName },
-              update: {},
-              create: { name: tagName },
-            })
-          )
-        );
-
-        // 記事とタグの関連付け
-        await tx.articleTag.createMany({
-          data: tagRecords.map((tag) => ({
-            articleId: article.id,
-            tagId: tag.id,
-          })),
-        });
-      }
+          // 記事とタグの関連付け
+          await tx.articleTag.createMany({
+            data: tagRecords.map((tag) => ({
+              articleId: article.id,
+              tagId: tag.id,
+            })),
+          });
+        })() : Promise.resolve(),
+      ]);
 
       // 作成した記事を関連データと一緒に取得
-      return await tx.article.findUniqueOrThrow({
+      const result = await tx.article.findUniqueOrThrow({
         where: { id: article.id },
         include: {
           category: true,
@@ -119,6 +123,13 @@ export class ArticleService {
           },
         },
       });
+      
+      const duration = Date.now() - startTime;
+      console.log(`Article creation transaction completed in ${duration}ms`);
+      
+      return result;
+    }, {
+      timeout: 15000, // 15秒にタイムアウトを延長
     });
   }
 
