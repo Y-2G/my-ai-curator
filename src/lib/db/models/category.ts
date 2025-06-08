@@ -20,6 +20,10 @@ export class CategoryModel {
     return categories;
   }
 
+  static async findManyWithCount(): Promise<CategoryWithCount[]> {
+    return this.findAll();
+  }
+
   static async findAllWithArticles(): Promise<CategoryWithCount[]> {
     const categories = await prisma.category.findMany({
       include: {

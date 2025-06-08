@@ -323,7 +323,6 @@ export class CollectorManager {
 
       // 8. レコメンデーション生成
       const recommendations = await this.generateRecommendations(
-        queryResult,
         filteredResults,
         aiMetrics,
         userProfile
@@ -364,7 +363,6 @@ export class CollectorManager {
    * レコメンデーション生成
    */
   private async generateRecommendations(
-    queryResult: any,
     filteredResults: any[],
     aiMetrics: any,
     _userProfile: UserProfile
@@ -412,7 +410,6 @@ export class CollectorManager {
     recommendations: string[];
     overallHealth: 'healthy' | 'degraded' | 'unhealthy';
   }> {
-    const _startTime = Date.now();
     const services = {
       searchQueryGenerator: { available: false, responseTime: undefined as number | undefined },
       contentEvaluator: { available: false, responseTime: undefined as number | undefined },

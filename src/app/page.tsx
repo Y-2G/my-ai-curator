@@ -3,36 +3,105 @@ import { Suspense } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ArticleList } from '@/components/article/ArticleList';
 import { Loading } from '@/components/common/Loading';
-import { getArticles, getCategories } from '@/lib/api/client';
 import { CategoryGrid } from '@/components/category/CategoryGrid';
-import { CategoryWithCount } from '@/lib/types';
+import { CategoryWithCount, Article, SourceType } from '@/lib/types';
+import { ArticleModel, ArticleWithRelations } from '@/lib/db/models/article';
+import { CategoryModel } from '@/lib/db/models/category';
+
+// データ変換関数
+function transformArticleData(dbArticle: ArticleWithRelations): Article {
+  return {
+    id: dbArticle.id,
+    title: dbArticle.title,
+    summary: dbArticle.summary,
+    content: dbArticle.content,
+    category: dbArticle.category,
+    tags: dbArticle.articleTags.map(at => at.tag),
+    sources: dbArticle.sources.map(source => ({
+      id: source.id,
+      url: source.url,
+      title: source.title,
+      type: source.type as SourceType,
+    })),
+    interestScore: dbArticle.interestScore,
+    qualityScore: dbArticle.qualityScore,
+    publishedAt: dbArticle.publishedAt?.toISOString() || '',
+    createdAt: dbArticle.createdAt.toISOString(),
+    updatedAt: dbArticle.updatedAt.toISOString(),
+  };
+}
+
+function transformCategoryData(dbCategory: any): CategoryWithCount {
+  return {
+    id: dbCategory.id,
+    name: dbCategory.name,
+    description: dbCategory.description,
+    color: dbCategory.color,
+    articleCount: dbCategory._count.articles,
+  };
+}
 
 async function FeaturedArticles() {
-  const { articles } = await getArticles({ limit: 6, sort: 'interestScore' });
+  try {
+    const result = await ArticleModel.findMany({ 
+      limit: 6, 
+      sort: 'interestScore' 
+    });
+    const articles = result.articles.map(transformArticleData);
 
-  return (
-    <section>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">最新の記事</h2>
-        <Link href="/articles">
-          <Button variant="ghost" size="sm">
-            すべて見る →
-          </Button>
-        </Link>
-      </div>
-      <ArticleList articles={articles} />
-    </section>
-  );
+    return (
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">最新の記事</h2>
+          <Link href="/articles">
+            <Button variant="ghost" size="sm">
+              すべて見る →
+            </Button>
+          </Link>
+        </div>
+        <ArticleList articles={articles} />
+      </section>
+    );
+  } catch (error) {
+    console.error('Failed to load featured articles:', error);
+    return (
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">最新の記事</h2>
+          <Link href="/articles">
+            <Button variant="ghost" size="sm">
+              すべて見る →
+            </Button>
+          </Link>
+        </div>
+        <div className="text-center py-8 text-gray-500">
+          記事を読み込めませんでした
+        </div>
+      </section>
+    );
+  }
 }
 
 async function CategorySection() {
-  const categories = (await getCategories()) as CategoryWithCount[];
+  try {
+    const dbCategories = await CategoryModel.findManyWithCount();
+    const categories = dbCategories.map(transformCategoryData);
 
-  return (
-    <section className="mb-12">
-      <CategoryGrid categories={categories} />
-    </section>
-  );
+    return (
+      <section className="mb-12">
+        <CategoryGrid categories={categories} />
+      </section>
+    );
+  } catch (error) {
+    console.error('Failed to load categories:', error);
+    return (
+      <section className="mb-12">
+        <div className="text-center py-8 text-gray-500">
+          カテゴリを読み込めませんでした
+        </div>
+      </section>
+    );
+  }
 }
 
 export default function HomePage() {

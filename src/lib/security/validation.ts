@@ -5,8 +5,6 @@ import { z } from 'zod';
  */
 
 // 基本的なセキュリティパターン
-const _SAFE_STRING_PATTERN = /^[a-zA-Z0-9\s\-_.()!?、。「」『』【】〈〉〔〕]*$/;
-const _EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // HTMLタグを除去するサニタイザー
@@ -44,7 +42,8 @@ export function normalizeWhitespace(input: string): string {
 
 // ユーザー入力用のセキュアな文字列
 const secureString = (minLength: number = 1, maxLength: number = 255) =>
-  z.string()
+  z
+    .string()
     .min(minLength, `最低${minLength}文字必要です`)
     .max(maxLength, `最大${maxLength}文字までです`)
     .transform(sanitizeHtml)
@@ -54,7 +53,8 @@ const secureString = (minLength: number = 1, maxLength: number = 255) =>
 
 // コンテンツ用の文字列（マークダウン許可）
 const contentString = (maxLength: number = 10000) =>
-  z.string()
+  z
+    .string()
     .max(maxLength, `最大${maxLength}文字までです`)
     .transform((val) => {
       // マークダウンは許可するが、危険なHTMLは除去
@@ -68,7 +68,8 @@ const contentString = (maxLength: number = 10000) =>
 const uuidSchema = z.string().regex(UUID_PATTERN, 'Invalid UUID format');
 
 // メール検証
-const emailSchema = z.string()
+const emailSchema = z
+  .string()
   .email('無効なメールアドレスです')
   .max(254, 'メールアドレスが長すぎます')
   .transform((val) => val.toLowerCase().trim());
@@ -80,11 +81,16 @@ export const ArticleValidationSchema = z.object({
   content: contentString(50000),
   category: secureString(1, 100).optional(),
   tags: z.array(secureString(1, 50)).max(20, '最大20個のタグまでです').default([]),
-  sources: z.array(z.object({
-    url: z.string().url('無効なURLです').max(2000),
-    title: secureString(1, 200).optional(),
-    type: secureString(1, 50).optional(),
-  })).max(50, '最大50個のソースまでです').default([]),
+  sources: z
+    .array(
+      z.object({
+        url: z.string().url('無効なURLです').max(2000),
+        title: secureString(1, 200).optional(),
+        type: secureString(1, 50).optional(),
+      })
+    )
+    .max(50, '最大50個のソースまでです')
+    .default([]),
   qualityScore: z.number().min(0).max(10).default(0),
   interestScore: z.number().min(0).max(10).default(0),
   publishedAt: z.string().datetime().optional(),
@@ -93,22 +99,27 @@ export const ArticleValidationSchema = z.object({
 // ユーザープロファイル更新の検証スキーマ
 export const UserProfileValidationSchema = z.object({
   name: secureString(1, 100),
-  profile: z.object({
-    techLevel: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-    preferredStyle: z.enum(['technical', 'casual', 'balanced']).optional(),
-    bio: secureString(0, 1000).optional(),
-  }).optional(),
-  interests: z.object({
-    categories: z.array(secureString(1, 100)).max(50).optional(),
-    tags: z.array(secureString(1, 100)).max(100).optional(),
-    keywords: z.array(secureString(1, 100)).max(200).optional(),
-  }).optional(),
+  profile: z
+    .object({
+      techLevel: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
+      preferredStyle: z.enum(['technical', 'casual', 'balanced']).optional(),
+      bio: secureString(0, 1000).optional(),
+    })
+    .optional(),
+  interests: z
+    .object({
+      categories: z.array(secureString(1, 100)).max(50).optional(),
+      tags: z.array(secureString(1, 100)).max(100).optional(),
+      keywords: z.array(secureString(1, 100)).max(200).optional(),
+    })
+    .optional(),
 });
 
 // ログイン検証スキーマ
 export const LoginValidationSchema = z.object({
   email: emailSchema,
-  password: z.string()
+  password: z
+    .string()
     .min(8, 'パスワードは8文字以上必要です')
     .max(128, 'パスワードが長すぎます')
     // 危険な文字を除去
@@ -117,8 +128,18 @@ export const LoginValidationSchema = z.object({
 
 // API クエリパラメータの検証
 export const ApiQueryValidationSchema = z.object({
-  page: z.string().regex(/^\d+$/).transform(Number).refine(n => n > 0 && n <= 1000).optional(),
-  limit: z.string().regex(/^\d+$/).transform(Number).refine(n => n > 0 && n <= 100).optional(),
+  page: z
+    .string()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .refine((n) => n > 0 && n <= 1000)
+    .optional(),
+  limit: z
+    .string()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .refine((n) => n > 0 && n <= 100)
+    .optional(),
   category: uuidSchema.or(secureString(1, 100)).optional(),
   tag: secureString(1, 100).optional(),
   search: secureString(0, 200).optional(),
@@ -133,11 +154,11 @@ export function sanitizeRequest(req: unknown): unknown {
   if (typeof req === 'string') {
     return sanitizeHtml(req);
   }
-  
+
   if (Array.isArray(req)) {
     return req.map(sanitizeRequest);
   }
-  
+
   if (req && typeof req === 'object') {
     const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(req)) {
@@ -149,7 +170,7 @@ export function sanitizeRequest(req: unknown): unknown {
     }
     return sanitized;
   }
-  
+
   return req;
 }
 

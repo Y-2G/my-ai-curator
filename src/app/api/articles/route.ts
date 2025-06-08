@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const category = searchParams.get('category') || undefined;
     const tag = searchParams.get('tag') || undefined;
-    const _search = searchParams.get('search') || undefined;
 
     // データベースから記事を取得
     const result = await ArticleModel.findMany({
@@ -23,22 +22,24 @@ export async function GET(request: NextRequest) {
     });
 
     // レスポンスデータの整形
-    const articles = result.articles.map(article => ({
+    const articles = result.articles.map((article) => ({
       id: article.id,
       title: article.title,
       summary: article.summary,
       content: article.content,
-      category: article.category ? {
-        id: article.category.id,
-        name: article.category.name,
-        description: article.category.description,
-        color: article.category.color,
-      } : null,
-      tags: article.articleTags.map(at => ({
+      category: article.category
+        ? {
+            id: article.category.id,
+            name: article.category.name,
+            description: article.category.description,
+            color: article.category.color,
+          }
+        : null,
+      tags: article.articleTags.map((at) => ({
         id: at.tag.id,
         name: at.tag.name,
       })),
-      sources: article.sources.map(source => ({
+      sources: article.sources.map((source) => ({
         id: source.id,
         url: source.url,
         title: source.title,

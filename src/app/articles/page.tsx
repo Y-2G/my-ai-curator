@@ -3,7 +3,8 @@ import type { Metadata } from 'next';
 import { ArticleList } from '@/components/article/ArticleList';
 import { Pagination } from '@/components/common/Pagination';
 import { Loading } from '@/components/common/Loading';
-import { getArticles } from '@/lib/api/client';
+import { ArticleModel, ArticleWithRelations } from '@/lib/db/models/article';
+import { Article, SourceType } from '@/lib/types';
 
 interface PageProps {
   searchParams: Promise<{
@@ -20,33 +21,74 @@ export const metadata: Metadata = {
   description: 'AIがキュレーションした最新の技術記事一覧',
 };
 
-async function ArticlesContent({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const page = parseInt(params.page || '1', 10);
-  const { articles, pagination } = await getArticles({
-    page,
-    limit: 12,
-    category: params.category,
-    tag: params.tag,
-    sort: params.sort as 'createdAt' | 'interestScore' | 'qualityScore',
-    order: params.order as 'asc' | 'desc',
-  });
-
-  return (
-    <>
-      <ArticleList articles={articles} />
-      {pagination && (
-        <div className="mt-12">
-          <Pagination
-            currentPage={pagination.page}
-            totalPages={pagination.totalPages}
-            baseUrl="/articles"
-          />
-        </div>
-      )}
-    </>
-  );
+function transformArticleData(dbArticle: ArticleWithRelations): Article {
+  return {
+    id: dbArticle.id,
+    title: dbArticle.title,
+    summary: dbArticle.summary,
+    content: dbArticle.content,
+    category: dbArticle.category,
+    tags: dbArticle.articleTags.map(at => at.tag),
+    sources: dbArticle.sources.map(source => ({
+      id: source.id,
+      url: source.url,
+      title: source.title,
+      type: source.type as SourceType,
+    })),
+    interestScore: dbArticle.interestScore,
+    qualityScore: dbArticle.qualityScore,
+    publishedAt: dbArticle.publishedAt?.toISOString() || '',
+    createdAt: dbArticle.createdAt.toISOString(),
+    updatedAt: dbArticle.updatedAt.toISOString(),
+  };
 }
+
+async function ArticlesContent({ searchParams }: PageProps) {
+  try {
+    const params = await searchParams;
+    const page = parseInt(params.page || '1', 10);
+    const result = await ArticleModel.findMany({
+      page,
+      limit: 12,
+      categoryId: params.category,
+      tagId: params.tag,
+      sort: params.sort as 'createdAt' | 'interestScore' | 'qualityScore',
+      order: params.order as 'asc' | 'desc',
+    });
+
+    const articles = result.articles.map(transformArticleData);
+    const pagination = {
+      page: result.page,
+      totalPages: result.totalPages,
+      total: result.total,
+      limit: 12,
+    };
+
+    return (
+      <>
+        <ArticleList articles={articles} />
+        {pagination && (
+          <div className="mt-12">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              baseUrl="/articles"
+            />
+          </div>
+        )}
+      </>
+    );
+  } catch (error) {
+    console.error('Failed to load articles:', error);
+    return (
+      <div className="text-center py-8 text-gray-500">
+        記事を読み込めませんでした
+      </div>
+    );
+  }
+}
+
+export const dynamic = 'force-dynamic';
 
 export default function ArticlesPage({ searchParams }: PageProps) {
   return (

@@ -25,7 +25,7 @@ export class SearchQueryGenerator {
     const {
       maxQueriesPerSource = 3,
       includeAdvanced: _includeAdvanced = userProfile.techLevel === 'expert',
-      language = userProfile.languagePreference
+      language = userProfile.languagePreference,
     } = options;
 
     try {
@@ -52,8 +52,8 @@ export class SearchQueryGenerator {
         [
           {
             role: 'user',
-            content: promptManager.renderTemplate('search-query-generation', variables)
-          }
+            content: promptManager.renderTemplate('search-query-generation', variables),
+          },
         ],
         {
           description: 'Search query generation response',
@@ -66,12 +66,12 @@ export class SearchQueryGenerator {
                   query: { type: 'string' },
                   source: { type: 'string' },
                   priority: { type: 'number' },
-                  keywords: { type: 'array', items: { type: 'string' } }
-                }
-              }
+                  keywords: { type: 'array', items: { type: 'string' } },
+                },
+              },
             },
-            reasoning: { type: 'string' }
-          }
+            reasoning: { type: 'string' },
+          },
         },
         {
           model: 'gpt-4o-mini',
@@ -101,13 +101,12 @@ export class SearchQueryGenerator {
       });
 
       return result;
-
     } catch (error) {
       this.logger.error('Failed to generate search queries', error as Error, {
         userId: userProfile.id,
         targetSources,
       });
-      
+
       // フォールバック: デフォルトクエリを返す
       return this.generateFallbackQueries(userProfile, targetSources);
     }
@@ -137,16 +136,17 @@ export class SearchQueryGenerator {
         [
           {
             role: 'user',
-            content: `特定のトピック「${topic}」に関する検索クエリを生成してください。\n\n` + 
-                     promptManager.renderTemplate('search-query-generation', variables)
-          }
+            content:
+              `特定のトピック「${topic}」に関する検索クエリを生成してください。\n\n` +
+              promptManager.renderTemplate('search-query-generation', variables),
+          },
         ],
         {
           description: 'Topic-specific search queries',
           properties: {
             queries: { type: 'array' },
-            reasoning: { type: 'string' }
-          }
+            reasoning: { type: 'string' },
+          },
         },
         {
           model: 'gpt-4o-mini',
@@ -155,8 +155,7 @@ export class SearchQueryGenerator {
         }
       );
 
-      return response.queries.filter(q => sources.includes(q.source));
-
+      return response.queries.filter((q) => sources.includes(q.source));
     } catch (error) {
       this.logger.error('Failed to generate topic queries', error as Error, { topic });
       return this.generateFallbackTopicQueries(topic, sources);
@@ -193,8 +192,8 @@ JSON形式で出力してください。
         {
           description: 'Trending search queries',
           properties: {
-            queries: { type: 'array' }
-          }
+            queries: { type: 'array' },
+          },
         },
         {
           model: 'gpt-4o-mini',
@@ -204,7 +203,6 @@ JSON形式で出力してください。
       );
 
       return response.queries;
-
     } catch (error) {
       this.logger.error('Failed to generate trending queries', error as Error);
       return [];
@@ -221,11 +219,11 @@ JSON形式で出力してください。
     userProfile: UserProfile
   ): SearchQuery[] {
     // ソースでフィルタリング
-    const filteredQueries = queries.filter(q => targetSources.includes(q.source));
+    const filteredQueries = queries.filter((q) => targetSources.includes(q.source));
 
     // ソースごとにグループ化
     const groupedBySources = new Map<string, SearchQuery[]>();
-    filteredQueries.forEach(query => {
+    filteredQueries.forEach((query) => {
       if (!groupedBySources.has(query.source)) {
         groupedBySources.set(query.source, []);
       }
@@ -238,7 +236,7 @@ JSON形式で出力してください。
       const sorted = sourceQueries
         .sort((a, b) => b.priority - a.priority)
         .slice(0, maxQueriesPerSource);
-      
+
       // ソース固有の最適化
       const optimized = this.optimizeForSource(sorted, source, userProfile);
       optimizedQueries.push(...optimized);
@@ -257,23 +255,25 @@ JSON形式で出力してください。
   ): SearchQuery[] {
     switch (source) {
       case 'reddit':
-        return queries.map(q => ({
+        return queries.map((q) => ({
           ...q,
           query: `${q.query} site:reddit.com`,
         }));
-      
+
       case 'github':
-        return queries.map(q => ({
+        return queries.map((q) => ({
           ...q,
-          query: q.query.includes('language:') ? q.query : `${q.query} language:typescript OR language:javascript`,
+          query: q.query.includes('language:')
+            ? q.query
+            : `${q.query} language:typescript OR language:javascript`,
         }));
-      
+
       case 'news':
-        return queries.map(q => ({
+        return queries.map((q) => ({
           ...q,
           query: `${q.query} ${new Date().getFullYear()}`,
         }));
-      
+
       default:
         return queries;
     }
@@ -295,8 +295,8 @@ JSON形式で出力してください。
     ];
 
     const queries: SearchQuery[] = [];
-    
-    targetSources.forEach(source => {
+
+    targetSources.forEach((source) => {
       baseQueries.slice(0, 2).forEach((baseQuery, index) => {
         queries.push({
           query: baseQuery,
@@ -317,20 +317,17 @@ JSON形式で出力してください。
   /**
    * トピック固有のフォールバッククエリ
    */
-  private generateFallbackTopicQueries(
-    topic: string,
-    sources: string[]
-  ): SearchQuery[] {
+  private generateFallbackTopicQueries(topic: string, sources: string[]): SearchQuery[] {
     const queries: SearchQuery[] = [];
-    
-    sources.forEach(source => {
+
+    sources.forEach((source) => {
       queries.push({
         query: `${topic} tutorial`,
         source,
         priority: 8,
         keywords: [topic, 'tutorial'],
       });
-      
+
       queries.push({
         query: `${topic} best practices`,
         source,
@@ -347,10 +344,18 @@ JSON形式で出力してください。
    */
   private getTrendKeywords(timeframe: string): string[] {
     const currentYear = new Date().getFullYear();
-    
+
     const baseKeywords = [
-      'AI', 'machine learning', 'TypeScript', 'React', 'Next.js',
-      'performance', 'security', 'cloud', 'DevOps', 'API'
+      'AI',
+      'machine learning',
+      'TypeScript',
+      'React',
+      'Next.js',
+      'performance',
+      'security',
+      'cloud',
+      'DevOps',
+      'API',
     ];
 
     switch (timeframe) {
@@ -370,34 +375,9 @@ JSON形式で出力してください。
    */
   private getSourceDistribution(queries: SearchQuery[]): Record<string, number> {
     const distribution: Record<string, number> = {};
-    queries.forEach(query => {
+    queries.forEach((query) => {
       distribution[query.source] = (distribution[query.source] || 0) + 1;
     });
     return distribution;
-  }
-
-  /**
-   * クエリのパフォーマンス分析
-   */
-  async analyzeQueryPerformance(
-    query: SearchQuery,
-    results: any[]
-  ): Promise<{
-    effectiveness: number;
-    suggestions: string[];
-  }> {
-    // 結果の品質を分析し、クエリの改善提案を生成
-    const effectiveness = Math.min(10, results.length * 0.5);
-    const suggestions: string[] = [];
-
-    if (results.length < 5) {
-      suggestions.push('より一般的なキーワードを使用する');
-    }
-    
-    if (results.length > 50) {
-      suggestions.push('より具体的なキーワードを追加する');
-    }
-
-    return { effectiveness, suggestions };
   }
 }

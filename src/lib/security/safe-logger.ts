@@ -30,10 +30,12 @@ function sanitizeForProduction(data: unknown): unknown {
     const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       const lowerKey = key.toLowerCase();
-      if (lowerKey.includes('password') || 
-          lowerKey.includes('token') || 
-          lowerKey.includes('secret') || 
-          lowerKey.includes('key')) {
+      if (
+        lowerKey.includes('password') ||
+        lowerKey.includes('token') ||
+        lowerKey.includes('secret') ||
+        lowerKey.includes('key')
+      ) {
         sanitized[key] = '***';
       } else {
         sanitized[key] = sanitizeForProduction(value);
@@ -52,12 +54,12 @@ export class SafeLogger {
   static log(level: LogLevel, message: string, context?: LogContext): void {
     const timestamp = new Date().toISOString();
     const sanitizedContext = context ? sanitizeForProduction(context) : undefined;
-    
+
     const logData = {
       timestamp,
       level,
       message,
-      ...(sanitizedContext && { context: sanitizedContext }),
+      ...(sanitizedContext ? { context: sanitizedContext } : {}),
     };
 
     switch (level) {

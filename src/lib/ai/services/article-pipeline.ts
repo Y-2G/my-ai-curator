@@ -331,7 +331,7 @@ export class ArticlePipeline {
     }
 
     // サマリー計算
-    const summary = this.calculateBatchSummary(successful, failed, sourceGroups.length);
+    const summary = this.calculateBatchSummary(successful, sourceGroups.length);
 
     this.logger.info('Batch article generation completed', summary);
 
@@ -471,7 +471,6 @@ export class ArticlePipeline {
 
   private calculateBatchSummary(
     successful: PipelineResult[],
-    failed: Array<{ sources: RawContentData[]; error: string }>,
     totalAttempted: number
   ): BatchPipelineResult['summary'] {
     const totalSuccessful = successful.length;

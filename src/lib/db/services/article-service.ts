@@ -27,7 +27,6 @@ export interface ArticleWithRelations extends Article {
 }
 
 export class ArticleService {
-  
   /**
    * 記事を作成・保存
    */
@@ -42,7 +41,7 @@ export class ArticleService {
       qualityScore = 0,
       interestScore = 0,
       publishedAt = new Date(),
-      metadata: _metadata
+      metadata: _metadata,
     } = input;
 
     return await prisma.$transaction(async (tx) => {
@@ -76,7 +75,7 @@ export class ArticleService {
       // ソースの作成
       if (sources.length > 0) {
         await tx.source.createMany({
-          data: sources.map(source => ({
+          data: sources.map((source) => ({
             articleId: article.id,
             title: source.title,
             url: source.url,
@@ -89,7 +88,7 @@ export class ArticleService {
       if (tags.length > 0) {
         // タグを作成または取得
         const tagRecords = await Promise.all(
-          tags.map(tagName =>
+          tags.map((tagName) =>
             tx.tag.upsert({
               where: { name: tagName },
               update: {},
@@ -100,7 +99,7 @@ export class ArticleService {
 
         // 記事とタグの関連付け
         await tx.articleTag.createMany({
-          data: tagRecords.map(tag => ({
+          data: tagRecords.map((tag) => ({
             articleId: article.id,
             tagId: tag.id,
           })),
@@ -126,25 +125,21 @@ export class ArticleService {
   /**
    * 記事一覧を取得
    */
-  async getArticles(options: {
-    page?: number;
-    limit?: number;
-    category?: string;
-    tag?: string;
-    search?: string;
-  } = {}): Promise<{
+  async getArticles(
+    options: {
+      page?: number;
+      limit?: number;
+      category?: string;
+      tag?: string;
+      search?: string;
+    } = {}
+  ): Promise<{
     articles: ArticleWithRelations[];
     total: number;
     page: number;
     totalPages: number;
   }> {
-    const {
-      page = 1,
-      limit = 10,
-      category,
-      tag,
-      search,
-    } = options;
+    const { page = 1, limit = 10, category, tag, search } = options;
 
     const skip = (page - 1) * limit;
 
@@ -186,10 +181,7 @@ export class ArticleService {
             },
           },
         },
-        orderBy: [
-          { publishedAt: 'desc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
         skip,
         take: limit,
       }),
@@ -238,10 +230,7 @@ export class ArticleService {
           },
         },
       },
-      orderBy: [
-        { publishedAt: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
       take: limit,
     });
   }
@@ -249,7 +238,10 @@ export class ArticleService {
   /**
    * カテゴリ別記事を取得
    */
-  async getArticlesByCategory(categoryName: string, limit: number = 10): Promise<ArticleWithRelations[]> {
+  async getArticlesByCategory(
+    categoryName: string,
+    limit: number = 10
+  ): Promise<ArticleWithRelations[]> {
     return await prisma.article.findMany({
       where: {
         category: {
@@ -265,10 +257,7 @@ export class ArticleService {
           },
         },
       },
-      orderBy: [
-        { publishedAt: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
       take: limit,
     });
   }
@@ -276,7 +265,10 @@ export class ArticleService {
   /**
    * 記事を更新
    */
-  async updateArticle(id: string, input: Partial<CreateArticleInput>): Promise<ArticleWithRelations | null> {
+  async updateArticle(
+    id: string,
+    input: Partial<CreateArticleInput>
+  ): Promise<ArticleWithRelations | null> {
     const existingArticle = await prisma.article.findUnique({
       where: { id },
       include: {
@@ -326,7 +318,7 @@ export class ArticleService {
       }
 
       // 記事の更新
-      const _updatedArticle = await tx.article.update({
+      await tx.article.update({
         where: { id },
         data: {
           ...(title !== undefined && { title }),
@@ -349,7 +341,7 @@ export class ArticleService {
         // 新しいソースを作成
         if (sources.length > 0) {
           await tx.source.createMany({
-            data: sources.map(source => ({
+            data: sources.map((source) => ({
               articleId: id,
               title: source.title,
               url: source.url,
@@ -369,7 +361,7 @@ export class ArticleService {
         // 新しいタグを作成・関連付け
         if (tags.length > 0) {
           const tagRecords = await Promise.all(
-            tags.map(tagName =>
+            tags.map((tagName) =>
               tx.tag.upsert({
                 where: { name: tagName },
                 update: {},
@@ -379,7 +371,7 @@ export class ArticleService {
           );
 
           await tx.articleTag.createMany({
-            data: tagRecords.map(tag => ({
+            data: tagRecords.map((tag) => ({
               articleId: id,
               tagId: tag.id,
             })),
@@ -469,16 +461,16 @@ export class ArticleService {
    */
   private getCategoryColor(categoryName: string): string {
     const colorMap: Record<string, string> = {
-      'テクノロジー': '#3B82F6',
-      'AI': '#8B5CF6',
-      'React': '#06B6D4',
-      'TypeScript': '#0EA5E9',
+      テクノロジー: '#3B82F6',
+      AI: '#8B5CF6',
+      React: '#06B6D4',
+      TypeScript: '#0EA5E9',
       'Next.js': '#10B981',
-      'JavaScript': '#F59E0B',
-      'Web開発': '#EF4444',
-      'プログラミング': '#84CC16',
-      'ニュース': '#6366F1',
-      'ツール': '#F97316',
+      JavaScript: '#F59E0B',
+      Web開発: '#EF4444',
+      プログラミング: '#84CC16',
+      ニュース: '#6366F1',
+      ツール: '#F97316',
     };
 
     return colorMap[categoryName] || '#6B7280';
