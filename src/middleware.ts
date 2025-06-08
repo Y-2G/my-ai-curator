@@ -12,9 +12,18 @@ export async function middleware(request: NextRequest) {
     // CORS設定（本番環境）
     if (env.NODE_ENV === 'production' && env.ALLOWED_ORIGINS?.length) {
       const origin = request.headers.get('origin');
-      if (origin && !env.ALLOWED_ORIGINS.includes(origin)) {
+      const referer = request.headers.get('referer');
+      
+      // 同一オリジンのリクエスト（ブラウザから直接）は許可
+      const requestUrl = new URL(request.url);
+      const isSameOrigin = !origin || origin === requestUrl.origin;
+      const isFromSameHost = referer && new URL(referer).origin === requestUrl.origin;
+      
+      if (!isSameOrigin && !isFromSameHost && origin && !env.ALLOWED_ORIGINS.includes(origin)) {
         logger.security('CORS_VIOLATION', {
           origin,
+          referer,
+          requestOrigin: requestUrl.origin,
           pathname,
           allowedOrigins: env.ALLOWED_ORIGINS,
         });
