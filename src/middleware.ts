@@ -83,7 +83,7 @@ export async function middleware(request: NextRequest) {
     // CSP ヘッダー（開発環境では緩い設定）
     const cspPolicy =
       env.NODE_ENV === 'production'
-        ? "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.openai.com https://www.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+        ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.openai.com https://www.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
         : "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';";
 
     response.headers.set('Content-Security-Policy', cspPolicy);
