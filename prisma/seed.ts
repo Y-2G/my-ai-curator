@@ -94,12 +94,12 @@ async function main() {
   console.log(`✅ Created ${tags.length} tags`);
 
   // 管理者ユーザーの作成
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmail = process.env.ADMIN_USER_ID;
   const adminPassword = process.env.ADMIN_PASSWORD;
 
   if (!adminEmail || !adminPassword) {
     throw new Error(
-      'ADMIN_EMAIL and ADMIN_PASSWORD environment variables are required for seeding'
+      'ADMIN_USER_ID and ADMIN_PASSWORD environment variables are required for seeding'
     );
   }
 

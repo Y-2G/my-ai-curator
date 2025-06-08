@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 // 認証が必要なAPIパスの定義
-const PROTECTED_PATHS = ['/api/admin', '/api/articles/generate', '/api/ai', '/api/batch', '/api/users'];
+const PROTECTED_PATHS = [
+  '/api/admin',
+  '/api/articles/generate',
+  '/api/ai',
+  '/api/batch',
+  '/api/users',
+];
 
 // 管理者専用APIパスの定義
 const ADMIN_ONLY_PATHS = ['/api/admin', '/api/debug', '/api/users'];
@@ -49,7 +55,7 @@ export class AuthMiddleware {
     const authHeader = request.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      
+
       // 内部API認証チェック
       const internalApiKey = process.env.INTERNAL_API_KEY;
       if (internalApiKey && token === internalApiKey) {
@@ -61,7 +67,7 @@ export class AuthMiddleware {
           exp: Math.floor(Date.now() / 1000) + 3600, // 1時間有効
         };
       }
-      
+
       // 通常のJWT検証
       return await this.verifyToken(token);
     }
@@ -113,9 +119,9 @@ export class AuthMiddleware {
     // 管理者専用パスのチェック
     if (this.isAdminOnlyPath(pathname)) {
       // 管理者かどうかのチェック（emailベースの簡易実装）
-      const adminEmail = process.env.ADMIN_EMAIL;
+      const adminEmail = process.env.ADMIN_USER_ID;
       if (!adminEmail) {
-        throw new Error('ADMIN_EMAIL environment variable is required for admin authentication');
+        throw new Error('ADMIN_USER_ID environment variable is required for admin authentication');
       }
       const isAdmin = authInfo.email === adminEmail || authInfo.role === 'admin';
 
@@ -166,9 +172,9 @@ export async function requireAdmin(
     return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
   }
 
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmail = process.env.ADMIN_USER_ID;
   if (!adminEmail) {
-    throw new Error('ADMIN_EMAIL environment variable is required for admin authentication');
+    throw new Error('ADMIN_USER_ID environment variable is required for admin authentication');
   }
   const isAdmin = authInfo.email === adminEmail || authInfo.role === 'admin';
 
