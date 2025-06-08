@@ -66,8 +66,8 @@ Vercelのプロジェクト設定で以下の環境変数を追加：
 
 ```bash
 # データベース（Vercel Postgresを使用する場合は自動設定）
-POSTGRES_URL="postgresql://..."
-POSTGRES_URL_NON_POOLING="postgresql://..."
+DATABASE_URL="postgresql://..."
+DATABASE_URL_NON_POOLING="postgresql://..."
 
 # OpenAI（必須）
 OPENAI_API_KEY="sk-..."

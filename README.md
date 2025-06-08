@@ -37,7 +37,7 @@ cp .env.example .env.local
 
 `.env.local`を編集して必要な環境変数を設定：
 
-- `POSTGRES_URL`: PostgreSQL接続URL
+- `DATABASE_URL`: PostgreSQL接続URL
 - `OPENAI_API_KEY`: OpenAI APIキー
 - その他必要なAPIキー
 
