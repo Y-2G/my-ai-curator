@@ -1,0 +1,133 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model User {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  name       String
+  password   String    @default("test")
+  profile    Json      @default("{}")
+  interests  Json      @default("{}")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  articles   Article[]
+  userInterests UserInterest[]
+  
+  @@index([email])
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  color       String    @default("#000000")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  articles    Article[]
+  
+  @@index([name])
+}
+
+model Article {
+  id            String    @id @default(uuid())
+  title         String
+  summary       String
+  content       String    @db.Text
+  categoryId    String?
+  authorId      String?
+  interestScore Int       @default(0)
+  qualityScore  Int       @default(0)
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  category      Category? @relation(fields: [categoryId], references: [id])
+  author        User?     @relation(fields: [authorId], references: [id])
+  sources       Source[]
+  articleTags   ArticleTag[]
+  
+  @@index([publishedAt(sort: Desc)])
+  @@index([categoryId])
+  @@index([interestScore(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Source {
+  id        String   @id @default(uuid())
+  articleId String
+  url       String
+  title     String?
+  type      String   // 'google', 'news', 'reddit', 'github', 'rss'
+  createdAt DateTime @default(now())
+  
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  @@index([articleId])
+  @@index([type])
+}
+
+model Tag {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  createdAt   DateTime @default(now())
+  
+  articleTags ArticleTag[]
+  
+  @@index([name])
+}
+
+model ArticleTag {
+  id        String   @id @default(uuid())
+  articleId String
+  tagId     String
+  createdAt DateTime @default(now())
+  
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id])
+  
+  @@unique([articleId, tagId])
+  @@index([articleId])
+  @@index([tagId])
+}
+
+model CollectionJob {
+  id              String    @id @default(uuid())
+  status          String    @default("pending") // 'pending', 'running', 'completed', 'failed'
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorMessage    String?
+  articlesCreated Int       @default(0)
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+model UserInterest {
+  id        String   @id @default(uuid())
+  userId    String
+  keyword   String
+  weight    Float    @default(1.0)
+  lastUsed  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, keyword])
+  @@index([userId])
+  @@index([weight(sort: Desc)])
+}
