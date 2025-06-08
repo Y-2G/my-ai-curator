@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { articleService } from '@/lib/db/services/article-service';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

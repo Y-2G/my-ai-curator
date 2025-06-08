@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ArticleModel } from '@/lib/db/models/article';
 import { prisma } from '@/lib/db/prisma';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }

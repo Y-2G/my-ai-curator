@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 // ユーザープロファイルの更新スキーマ

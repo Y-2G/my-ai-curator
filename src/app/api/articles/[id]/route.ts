@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ArticleModel } from '@/lib/db/models/article';
 import { articleService } from '@/lib/db/services/article-service';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const params = await context.params;

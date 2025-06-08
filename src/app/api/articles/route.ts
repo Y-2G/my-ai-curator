@@ -2,6 +2,10 @@ import { NextRequest } from 'next/server';
 import { ArticleModel } from '@/lib/db/models/article';
 import { successResponse, errorResponse } from '@/lib/api/response';
 
+// ランタイム設定
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // クエリパラメータの取得
