@@ -1,383 +1,144 @@
-import aiClient from '../client';
-import promptManager from '../prompts';
-import type { UserProfile, GeneratedSearchQueries, SearchQuery } from '../types';
-import { Logger } from '@/lib/utils/logger';
+import { openAIService } from '../openai-service';
+import { UserInterestProfile, SearchQuery } from '../types';
 
 export class SearchQueryGenerator {
-  private logger: Logger;
-
-  constructor() {
-    this.logger = new Logger('SearchQueryGenerator');
-  }
-
   /**
-   * ユーザープロファイルに基づいて検索クエリを生成
+   * ユーザーの興味プロファイルから検索クエリを生成
    */
-  async generateQueries(
-    userProfile: UserProfile,
-    targetSources: string[] = ['google', 'news', 'reddit', 'github', 'rss'],
+  async generateSearchQueries(
+    userProfile: UserInterestProfile,
     options: {
-      maxQueriesPerSource?: number;
-      includeAdvanced?: boolean;
-      language?: 'ja' | 'en' | 'both';
+      count?: number;
+      focusAreas?: string[];
     } = {}
-  ): Promise<GeneratedSearchQueries> {
-    const {
-      maxQueriesPerSource = 3,
-      includeAdvanced: _includeAdvanced = userProfile.techLevel === 'expert',
-      language = userProfile.languagePreference,
-    } = options;
-
-    try {
-      this.logger.info('Generating search queries', {
-        userId: userProfile.id,
-        targetSources,
-        options,
-      });
-
-      // プロンプトに渡す変数を準備
-      const variables = {
-        userInterests: userProfile.interests.join(', '),
-        techLevel: userProfile.techLevel,
-        recentTopics: userProfile.recentActivity.join(', '),
-        contentTypes: userProfile.contentTypes.join(', '),
-        language: language,
-      };
-
-      // AIでクエリ生成
-      const response = await aiClient.chatCompletionJSON<{
-        queries: SearchQuery[];
-        reasoning: string;
-      }>(
-        [
-          {
-            role: 'user',
-            content: promptManager.renderTemplate('search-query-generation', variables),
-          },
-        ],
-        {
-          description: 'Search query generation response',
-          properties: {
-            queries: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  query: { type: 'string' },
-                  source: { type: 'string' },
-                  priority: { type: 'number' },
-                  keywords: { type: 'array', items: { type: 'string' } },
-                },
-              },
-            },
-            reasoning: { type: 'string' },
-          },
-        },
-        {
-          model: 'gpt-4o-mini',
-          temperature: 0.7,
-          maxTokens: 1500,
-        }
-      );
-
-      // 結果をフィルタリング・最適化
-      const optimizedQueries = this.optimizeQueries(
-        response.queries,
-        targetSources,
-        maxQueriesPerSource,
-        userProfile
-      );
-
-      const result: GeneratedSearchQueries = {
-        queries: optimizedQueries,
-        userProfile,
-        reasoning: response.reasoning,
-      };
-
-      this.logger.info('Search queries generated successfully', {
-        userId: userProfile.id,
-        totalQueries: optimizedQueries.length,
-        sourceDistribution: this.getSourceDistribution(optimizedQueries),
-      });
-
-      return result;
-    } catch (error) {
-      this.logger.error('Failed to generate search queries', error as Error, {
-        userId: userProfile.id,
-        targetSources,
-      });
-
-      // フォールバック: デフォルトクエリを返す
-      return this.generateFallbackQueries(userProfile, targetSources);
-    }
-  }
-
-  /**
-   * 特定のトピックに対する追加クエリ生成
-   */
-  async generateTopicQueries(
-    topic: string,
-    userProfile: UserProfile,
-    sources: string[] = ['google', 'news']
   ): Promise<SearchQuery[]> {
-    try {
-      const variables = {
-        userInterests: `${topic}, ${userProfile.interests.join(', ')}`,
-        techLevel: userProfile.techLevel,
-        recentTopics: topic,
-        contentTypes: userProfile.contentTypes.join(', '),
-        language: userProfile.languagePreference,
-      };
+    const { count = 5, focusAreas = [] } = options;
 
-      const response = await aiClient.chatCompletionJSON<{
-        queries: SearchQuery[];
-        reasoning: string;
-      }>(
-        [
+    // Processing user profile for search query generation
+
+    try {
+      const prompt = this.buildSearchQueryPrompt(userProfile, {
+        count,
+        focusAreas,
+      });
+
+      const response = await openAIService.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
           {
-            role: 'user',
+            role: 'system',
             content:
-              `特定のトピック「${topic}」に関する検索クエリを生成してください。\n\n` +
-              promptManager.renderTemplate('search-query-generation', variables),
+              'あなたは情報収集の専門家です。ユーザーの興味に基づいて最適な検索クエリを生成してください。',
+          },
+          {
+            role: 'user',
+            content: prompt,
           },
         ],
-        {
-          description: 'Topic-specific search queries',
-          properties: {
-            queries: { type: 'array' },
-            reasoning: { type: 'string' },
-          },
-        },
-        {
-          model: 'gpt-4o-mini',
-          temperature: 0.6,
-          maxTokens: 800,
-        }
-      );
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 1500,
+      });
 
-      return response.queries.filter((q) => sources.includes(q.source));
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response from OpenAI');
+      }
+
+      const result = JSON.parse(content);
+      return this.validateAndFormatQueries(result.queries || []);
     } catch (error) {
-      this.logger.error('Failed to generate topic queries', error as Error, { topic });
-      return this.generateFallbackTopicQueries(topic, sources);
-    }
-  }
-
-  /**
-   * トレンド・時事ネタに特化したクエリ生成
-   */
-  async generateTrendingQueries(
-    userProfile: UserProfile,
-    timeframe: 'today' | 'week' | 'month' = 'week'
-  ): Promise<SearchQuery[]> {
-    const trendKeywords = this.getTrendKeywords(timeframe);
-    const userInterests = userProfile.interests.join(', ');
-
-    try {
-      const prompt = `
-最新のトレンドを踏まえた検索クエリを生成してください。
-
-# ユーザーの興味: ${userInterests}
-# 技術レベル: ${userProfile.techLevel}
-# 期間: ${timeframe}
-# トレンドキーワード: ${trendKeywords.join(', ')}
-
-最新の技術トレンド、アップデート、ニュースを捉える検索クエリを作成してください。
-JSON形式で出力してください。
-`;
-
-      const response = await aiClient.chatCompletionJSON<{
-        queries: SearchQuery[];
-      }>(
-        [{ role: 'user', content: prompt }],
-        {
-          description: 'Trending search queries',
-          properties: {
-            queries: { type: 'array' },
-          },
-        },
-        {
-          model: 'gpt-4o-mini',
-          temperature: 0.8,
-          maxTokens: 1000,
-        }
-      );
-
-      return response.queries;
-    } catch (error) {
-      this.logger.error('Failed to generate trending queries', error as Error);
+      console.error('Search query generation error:', error);
       return [];
     }
   }
 
   /**
-   * クエリを最適化・フィルタリング
+   * 検索クエリ生成用のプロンプトを構築
    */
-  private optimizeQueries(
-    queries: SearchQuery[],
-    targetSources: string[],
-    maxQueriesPerSource: number,
-    userProfile: UserProfile
-  ): SearchQuery[] {
-    // ソースでフィルタリング
-    const filteredQueries = queries.filter((q) => targetSources.includes(q.source));
-
-    // ソースごとにグループ化
-    const groupedBySources = new Map<string, SearchQuery[]>();
-    filteredQueries.forEach((query) => {
-      if (!groupedBySources.has(query.source)) {
-        groupedBySources.set(query.source, []);
-      }
-      groupedBySources.get(query.source)!.push(query);
-    });
-
-    // 各ソースから優先度順に選択
-    const optimizedQueries: SearchQuery[] = [];
-    groupedBySources.forEach((sourceQueries, source) => {
-      const sorted = sourceQueries
-        .sort((a, b) => b.priority - a.priority)
-        .slice(0, maxQueriesPerSource);
-
-      // ソース固有の最適化
-      const optimized = this.optimizeForSource(sorted, source, userProfile);
-      optimizedQueries.push(...optimized);
-    });
-
-    return optimizedQueries;
-  }
-
-  /**
-   * ソース固有の最適化
-   */
-  private optimizeForSource(
-    queries: SearchQuery[],
-    source: string,
-    _userProfile: UserProfile
-  ): SearchQuery[] {
-    switch (source) {
-      case 'reddit':
-        return queries.map((q) => ({
-          ...q,
-          query: `${q.query} site:reddit.com`,
-        }));
-
-      case 'github':
-        return queries.map((q) => ({
-          ...q,
-          query: q.query.includes('language:')
-            ? q.query
-            : `${q.query} language:typescript OR language:javascript`,
-        }));
-
-      case 'news':
-        return queries.map((q) => ({
-          ...q,
-          query: `${q.query} ${new Date().getFullYear()}`,
-        }));
-
-      default:
-        return queries;
+  private buildSearchQueryPrompt(
+    userProfile: UserInterestProfile,
+    options: {
+      count: number;
+      focusAreas: string[];
     }
-  }
+  ): string {
+    const userInfo = this.formatUserProfile(userProfile);
 
-  /**
-   * フォールバック用のデフォルトクエリ生成
-   */
-  private generateFallbackQueries(
-    userProfile: UserProfile,
-    targetSources: string[]
-  ): GeneratedSearchQueries {
-    const baseQueries = [
-      'TypeScript best practices',
-      'React new features',
-      'JavaScript performance',
-      'Next.js tutorial',
-      'web development trends',
-    ];
+    return `
+${userInfo}
 
-    const queries: SearchQuery[] = [];
+タスク: 上記のユーザープロファイルに基づいて、${options.count}個の検索クエリを生成してください。
 
-    targetSources.forEach((source) => {
-      baseQueries.slice(0, 2).forEach((baseQuery, index) => {
-        queries.push({
-          query: baseQuery,
-          source,
-          priority: 5 - index,
-          keywords: baseQuery.split(' '),
-        });
-      });
-    });
+要件:
+1. ユーザーの興味分野を考慮
+2. 実用的で具体的なクエリ
+3. 多様性のある検索内容
+4. 具体的な年代や日付などの情報をクエリに含めない
 
-    return {
-      queries,
-      userProfile,
-      reasoning: 'フォールバック: デフォルトクエリを使用',
-    };
-  }
-
-  /**
-   * トピック固有のフォールバッククエリ
-   */
-  private generateFallbackTopicQueries(topic: string, sources: string[]): SearchQuery[] {
-    const queries: SearchQuery[] = [];
-
-    sources.forEach((source) => {
-      queries.push({
-        query: `${topic} tutorial`,
-        source,
-        priority: 8,
-        keywords: [topic, 'tutorial'],
-      });
-
-      queries.push({
-        query: `${topic} best practices`,
-        source,
-        priority: 7,
-        keywords: [topic, 'best practices'],
-      });
-    });
-
-    return queries;
-  }
-
-  /**
-   * トレンドキーワード取得
-   */
-  private getTrendKeywords(timeframe: string): string[] {
-    const currentYear = new Date().getFullYear();
-
-    const baseKeywords = [
-      'AI',
-      'machine learning',
-      'TypeScript',
-      'React',
-      'Next.js',
-      'performance',
-      'security',
-      'cloud',
-      'DevOps',
-      'API',
-    ];
-
-    switch (timeframe) {
-      case 'today':
-        return [...baseKeywords, 'latest', 'new', 'update'];
-      case 'week':
-        return [...baseKeywords, 'weekly', 'trending', currentYear.toString()];
-      case 'month':
-        return [...baseKeywords, 'monthly', 'review', currentYear.toString()];
-      default:
-        return baseKeywords;
+以下のJSON形式で回答してください:
+{
+  "queries": [
+    {
+      "query": "具体的な検索クエリ（日本語または英語）",
+      "category": "カテゴリ名",
+      "priority": 1-10の数値（高いほど重要）,
+      "reasoning": "このクエリを選んだ理由",
+      "sources": ["GitHub", "Stack Overflow", "Qiita", "Zenn", "公式ドキュメント", "技術ブログ"]
     }
+  ]
+}
+
+検索クエリの例:
+- "React Server Components 実装方法"
+- "TypeScript 5.0 新機能 実用例"
+- "Next.js 14 App Router パフォーマンス最適化"
+`;
   }
 
   /**
-   * ソース分布の統計取得
+   * ユーザープロファイルを文字列形式に変換
    */
-  private getSourceDistribution(queries: SearchQuery[]): Record<string, number> {
-    const distribution: Record<string, number> = {};
-    queries.forEach((query) => {
-      distribution[query.source] = (distribution[query.source] || 0) + 1;
-    });
-    return distribution;
+  private formatUserProfile(userProfile: UserInterestProfile): string {
+    const profile = userProfile.profile || {};
+    const interests = userProfile.interests || {};
+    const userInterests = userProfile.userInterests || [];
+
+    return `
+ユーザープロファイル:
+- 名前: ${userProfile.name}
+- 記事スタイル: ${profile.preferredStyle || 'balanced'}
+- 自己紹介: ${profile.bio || '記載なし'}
+
+興味分野:
+- カテゴリ: ${interests.categories?.join(', ') || 'なし'}
+- タグ: ${interests.tags?.join(', ') || 'なし'}
+- キーワード: ${interests.keywords?.join(', ') || 'なし'}
+
+重要度順キーワード:
+${userInterests
+  .sort((a, b) => b.weight - a.weight)
+  .slice(0, 10)
+  .map((ui) => `- ${ui.keyword} (重要度: ${ui.weight})`)
+  .join('\n')}
+`;
+  }
+
+  /**
+   * 生成されたクエリを検証・整形
+   */
+  private validateAndFormatQueries(queries: any[]): SearchQuery[] {
+    return queries
+      .filter((q) => q.query && q.category)
+      .map((q) => ({
+        query: q.query,
+        category: q.category,
+        priority: Math.max(1, Math.min(10, q.priority || 5)),
+        reasoning: q.reasoning || 'AI generated query',
+        sources: Array.isArray(q.sources) ? q.sources : ['Web Search'],
+      }))
+      .slice(0, 10); // 最大10個まで
   }
 }
+
+export const searchQueryGenerator = new SearchQueryGenerator();

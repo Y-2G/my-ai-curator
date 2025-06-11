@@ -1,4 +1,10 @@
-import { SearchQuery } from '../ai/search-query-generator';
+export interface SearchQuery {
+  query: string;
+  category: string;
+  priority: number;
+  reasoning: string;
+  sources: string[];
+}
 
 export interface WebSearchResult {
   title: string;
@@ -38,12 +44,7 @@ export class WebSearchCollector {
       dateRestrict?: string; // 'd1' (past day), 'w1' (past week), 'm1' (past month)
     } = {}
   ): Promise<SearchApiResponse> {
-    const {
-      maxResults = 10,
-      language = 'ja',
-      region = 'JP',
-      dateRestrict,
-    } = options;
+    const { maxResults = 10, language = 'ja', region = 'JP', dateRestrict = 'm1' } = options;
 
     const startTime = Date.now();
 
@@ -81,7 +82,6 @@ export class WebSearchCollector {
         query: searchQuery.query,
         processingTime: Date.now() - startTime,
       };
-
     } catch (error) {
       console.error('Web search error:', error);
       return {
@@ -104,10 +104,7 @@ export class WebSearchCollector {
       concurrency?: number;
     } = {}
   ): Promise<Map<string, SearchApiResponse>> {
-    const {
-      maxResultsPerQuery = 8,
-      concurrency = 3,
-    } = options;
+    const { maxResultsPerQuery = 8, concurrency = 3 } = options;
 
     const results = new Map<string, SearchApiResponse>();
 
@@ -117,7 +114,7 @@ export class WebSearchCollector {
     // 並列実行（制限あり）
     for (let i = 0; i < sortedQueries.length; i += concurrency) {
       const batch = sortedQueries.slice(i, i + concurrency);
-      
+
       const batchPromises = batch.map(async (query) => {
         const result = await this.searchWithQuery(query, {
           maxResults: maxResultsPerQuery,
@@ -126,7 +123,7 @@ export class WebSearchCollector {
       });
 
       const batchResults = await Promise.allSettled(batchPromises);
-      
+
       batchResults.forEach((result) => {
         if (result.status === 'fulfilled') {
           results.set(result.value.query, result.value.result);
@@ -135,7 +132,7 @@ export class WebSearchCollector {
 
       // レート制限を避けるため少し待機
       if (i + concurrency < sortedQueries.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -169,13 +166,13 @@ export class WebSearchCollector {
     }
 
     const response = await fetch(`https://www.googleapis.com/customsearch/v1?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Google Search API error: ${response.status}`);
     }
 
     const data = await response.json();
-    
+
     return (data.items || []).map((item: any) => ({
       title: item.title,
       url: item.link,
@@ -210,13 +207,13 @@ export class WebSearchCollector {
     });
 
     const response = await fetch(`https://serpapi.com/search?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`SERP API error: ${response.status}`);
     }
 
     const data = await response.json();
-    
+
     return (data.organic_results || []).map((item: any) => ({
       title: item.title,
       url: item.link,
@@ -249,15 +246,15 @@ export class WebSearchCollector {
       });
 
       const response = await fetch(`https://api.duckduckgo.com/?${params}`);
-      
+
       if (!response.ok) {
         throw new Error(`DuckDuckGo API error: ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       const results: WebSearchResult[] = [];
-      
+
       // Abstract結果を追加
       if (data.Abstract) {
         results.push({
@@ -293,7 +290,6 @@ export class WebSearchCollector {
       });
 
       return results;
-
     } catch (error) {
       console.error('DuckDuckGo search error:', error);
       return [];
@@ -303,45 +299,52 @@ export class WebSearchCollector {
   /**
    * 検索結果の関連度スコアリング
    */
-  private scoreResults(
-    results: WebSearchResult[],
-    searchQuery: SearchQuery
-  ): WebSearchResult[] {
+  private scoreResults(results: WebSearchResult[], searchQuery: SearchQuery): WebSearchResult[] {
     const queryTerms = searchQuery.query.toLowerCase().split(' ');
-    
-    return results.map(result => {
-      let score = result.metadata?.relevanceScore || 0.5;
-      
-      // タイトルでのキーワードマッチ
-      const titleLower = result.title.toLowerCase();
-      const titleMatches = queryTerms.filter(term => titleLower.includes(term)).length;
-      score += (titleMatches / queryTerms.length) * 0.3;
-      
-      // スニペットでのキーワードマッチ
-      const snippetLower = result.snippet.toLowerCase();
-      const snippetMatches = queryTerms.filter(term => snippetLower.includes(term)).length;
-      score += (snippetMatches / queryTerms.length) * 0.2;
-      
-      // ドメインの信頼性
-      const trustedDomains = [
-        'github.com', 'stackoverflow.com', 'qiita.com', 'zenn.dev',
-        'dev.to', 'medium.com', 'react.dev', 'nextjs.org', 'typescript.org'
-      ];
-      
-      if (result.metadata?.domain && trustedDomains.some(domain => 
-        result.metadata!.domain.includes(domain)
-      )) {
-        score += 0.2;
-      }
-      
-      return {
-        ...result,
-        metadata: {
-          ...result.metadata!,
-          relevanceScore: Math.min(1.0, score),
-        },
-      };
-    }).sort((a, b) => (b.metadata?.relevanceScore || 0) - (a.metadata?.relevanceScore || 0));
+
+    return results
+      .map((result) => {
+        let score = result.metadata?.relevanceScore || 0.5;
+
+        // タイトルでのキーワードマッチ
+        const titleLower = result.title.toLowerCase();
+        const titleMatches = queryTerms.filter((term) => titleLower.includes(term)).length;
+        score += (titleMatches / queryTerms.length) * 0.3;
+
+        // スニペットでのキーワードマッチ
+        const snippetLower = result.snippet.toLowerCase();
+        const snippetMatches = queryTerms.filter((term) => snippetLower.includes(term)).length;
+        score += (snippetMatches / queryTerms.length) * 0.2;
+
+        // ドメインの信頼性
+        const trustedDomains = [
+          'github.com',
+          'stackoverflow.com',
+          'qiita.com',
+          'zenn.dev',
+          'dev.to',
+          'medium.com',
+          'react.dev',
+          'nextjs.org',
+          'typescript.org',
+        ];
+
+        if (
+          result.metadata?.domain &&
+          trustedDomains.some((domain) => result.metadata!.domain.includes(domain))
+        ) {
+          score += 0.2;
+        }
+
+        return {
+          ...result,
+          metadata: {
+            ...result.metadata!,
+            relevanceScore: Math.min(1.0, score),
+          },
+        };
+      })
+      .sort((a, b) => (b.metadata?.relevanceScore || 0) - (a.metadata?.relevanceScore || 0));
   }
 
   /**
@@ -349,7 +352,7 @@ export class WebSearchCollector {
    */
   private parseDate(dateString?: string): Date | undefined {
     if (!dateString) return undefined;
-    
+
     try {
       const date = new Date(dateString);
       // 有効な日付かチェック
@@ -367,17 +370,17 @@ export class WebSearchCollector {
    */
   getAvailableApis(): string[] {
     const apis: string[] = [];
-    
+
     if (this.GOOGLE_API_KEY && this.GOOGLE_CX) {
       apis.push('Google Custom Search');
     }
-    
+
     if (this.SERP_API_KEY) {
       apis.push('SERP API');
     }
-    
+
     apis.push('DuckDuckGo (Free)');
-    
+
     return apis;
   }
 }

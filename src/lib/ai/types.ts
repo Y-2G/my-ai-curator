@@ -1,34 +1,49 @@
 // AI関連の型定義
 
-export interface AIResponse<T = any> {
-  data: T;
-  confidence: number;
-  tokensUsed: number;
-  model: string;
-  timestamp: string;
+export interface UserInterestProfile {
+  id: string;
+  name: string;
+  email: string;
+  profile?: {
+    preferredStyle?: 'technical' | 'casual' | 'balanced';
+    bio?: string;
+    location?: string;
+  };
+  interests?: {
+    categories?: string[];
+    tags?: string[];
+    keywords?: string[];
+  };
+  userInterests?: Array<{
+    keyword: string;
+    weight: number;
+    lastUsed: string;
+  }>;
 }
 
 export interface SearchQuery {
   query: string;
-  source: string;
+  category: string;
   priority: number;
-  keywords: string[];
-}
-
-export interface GeneratedSearchQueries {
-  queries: SearchQuery[];
-  userProfile: UserProfile;
   reasoning: string;
+  sources: string[];
 }
 
 export interface UserProfile {
   id: string;
   interests: string[];
-  techLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   preferredTopics: string[];
   recentActivity: string[];
   languagePreference: 'ja' | 'en' | 'both';
-  contentTypes: ('tutorial' | 'news' | 'research' | 'tools' | 'discussion' | 'guide' | 'analysis')[];
+  contentTypes: (
+    | 'tutorial'
+    | 'news'
+    | 'research'
+    | 'tools'
+    | 'discussion'
+    | 'guide'
+    | 'analysis'
+  )[];
 }
 
 export interface ContentEvaluation {

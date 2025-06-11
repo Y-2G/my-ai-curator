@@ -60,14 +60,14 @@ export class OpenAIService {
     userProfile?: UserProfile
   ): Promise<GeneratedArticle> {
     const prompt = this.buildArticleGenerationPrompt(sources, userProfile);
-    
+
     try {
       const response = await openai.chat.completions.create({
         model: this.model,
         messages: [
           {
             role: 'system',
-            content: 'あなたは技術系の個人ブログライターです。読者の興味を引く記事を作成してください。',
+            content: 'あなたはプロのWebライターです。読者の興味を引く記事を作成してください。',
           },
           {
             role: 'user',
@@ -103,7 +103,6 @@ export class OpenAIService {
 以下のコンテンツについて、ユーザーの興味度を0-10のスコアで評価してください。
 
 ユーザープロフィール:
-- 技術レベル: ${userProfile.techLevel}
 - 興味分野: ${userProfile.interests.join(', ')}
 - 好むスタイル: ${userProfile.preferredStyle}
 
@@ -213,104 +212,6 @@ ${availableCategories.join(', ')}
   }
 
   /**
-   * 検索クエリを生成
-   */
-  async generateSearchQueries(
-    userProfile: UserProfile,
-    limit: number = 5
-  ): Promise<string[]> {
-    const prompt = `
-以下のユーザープロフィールに基づいて、技術系の検索クエリを${limit}個生成してください。
-
-ユーザープロフィール:
-- 技術レベル: ${userProfile.techLevel}
-- 興味分野: ${userProfile.interests.join(', ')}
-- 好むスタイル: ${userProfile.preferredStyle}
-
-最新のトレンドや話題を考慮し、具体的で検索しやすいクエリを生成してください。
-各クエリは1行ずつ記載してください。
-`;
-
-    try {
-      const response = await openai.chat.completions.create({
-        model: this.model,
-        messages: [
-          {
-            role: 'system',
-            content: 'あなたは技術トレンドに詳しい専門家です。',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.8,
-        max_tokens: 200,
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No response from OpenAI');
-      }
-
-      return content
-        .split('\n')
-        .filter(query => query.trim().length > 0)
-        .slice(0, limit);
-    } catch (error) {
-      console.error('OpenAI search query generation error:', error);
-      // エラー時はデフォルトクエリを返す
-      return userProfile.interests.slice(0, limit);
-    }
-  }
-
-  /**
-   * タグを生成
-   */
-  async generateTags(content: string, limit: number = 5): Promise<string[]> {
-    const prompt = `
-以下のコンテンツから、関連するタグを${limit}個抽出してください。
-
-コンテンツ:
-${content.substring(0, 1000)}...
-
-タグは短く、具体的で、技術用語を含むものにしてください。
-各タグは1行ずつ記載してください。
-`;
-
-    try {
-      const response = await openai.chat.completions.create({
-        model: this.model,
-        messages: [
-          {
-            role: 'system',
-            content: 'あなたはコンテンツのタグ付け専門家です。',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.5,
-        max_tokens: 100,
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No response from OpenAI');
-      }
-
-      return content
-        .split('\n')
-        .filter(tag => tag.trim().length > 0)
-        .slice(0, limit);
-    } catch (error) {
-      console.error('OpenAI tag generation error:', error);
-      return [];
-    }
-  }
-
-  /**
    * 記事生成用のプロンプトを構築
    */
   private buildArticleGenerationPrompt(
@@ -330,20 +231,11 @@ ${content.substring(0, 1000)}...
       )
       .join('\n');
 
-    const userProfileSection = userProfile
-      ? `
+    const userProfileSection = `
 # 読者プロフィール
-- 技術レベル: ${userProfile.techLevel}
-- 興味分野: ${userProfile.interests.join(', ')}
-- 好む記事スタイル: ${userProfile.preferredStyle}
-`
-      : `
-# 読者プロフィール
-- 技術レベル: intermediate
-- 興味分野: プログラミング, AI・機械学習
-- 好む記事スタイル: balanced
+- 興味分野: ${userProfile?.interests.join(', ')}
+- 好む記事スタイル: ${userProfile?.preferredStyle}
 `;
-
     // プロンプトマネージャーから「article-generation」テンプレートを使用
     return PromptManager.renderTemplate('article-generation', {
       sources: sourcesSection,
