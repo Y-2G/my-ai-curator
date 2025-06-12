@@ -1,12 +1,13 @@
 import { openai } from '../openai';
-import { UserInterestProfile, SearchQuery } from '../types';
+import { UserProfile, SearchQuery } from '../types';
+import { formatUserProfile } from '../utiles';
 
 export class SearchQueryGenerator {
   /**
    * ユーザーの興味プロファイルから検索クエリを生成
    */
   async generateSearchQueries(
-    userProfile: UserInterestProfile,
+    userProfile: UserProfile,
     options: {
       count?: number;
       focusAreas?: string[];
@@ -15,7 +16,6 @@ export class SearchQueryGenerator {
     const { count = 5, focusAreas = [] } = options;
 
     // Processing user profile for search query generation
-
     try {
       const prompt = this.buildSearchQueryPrompt(userProfile, {
         count,
@@ -57,13 +57,13 @@ export class SearchQueryGenerator {
    * 検索クエリ生成用のプロンプトを構築
    */
   private buildSearchQueryPrompt(
-    userProfile: UserInterestProfile,
+    userProfile: UserProfile,
     options: {
       count: number;
       focusAreas: string[];
     }
   ): string {
-    const userInfo = this.formatUserProfile(userProfile);
+    const userInfo = formatUserProfile(userProfile);
 
     return `
 ${userInfo}
@@ -95,34 +95,6 @@ ${userInfo}
 - "React Server Components 実装方法"
 - "TypeScript 5.0 新機能 実用例"
 - "Next.js 14 App Router パフォーマンス最適化"
-`;
-  }
-
-  /**
-   * ユーザープロファイルを文字列形式に変換
-   */
-  private formatUserProfile(userProfile: UserInterestProfile): string {
-    const profile = userProfile.profile || {};
-    const interests = userProfile.interests || {};
-    const userInterests = userProfile.userInterests || [];
-
-    return `
-ユーザープロファイル:
-- 名前: ${userProfile.name}
-- 記事スタイル: ${profile.preferredStyle || 'balanced'}
-- 自己紹介: ${profile.bio || '記載なし'}
-
-興味分野:
-- カテゴリ: ${interests.categories?.join(', ') || 'なし'}
-- タグ: ${interests.tags?.join(', ') || 'なし'}
-- キーワード: ${interests.keywords?.join(', ') || 'なし'}
-
-重要度順キーワード:
-${userInterests
-  .sort((a, b) => b.weight - a.weight)
-  .slice(0, 10)
-  .map((ui) => `- ${ui.keyword} (重要度: ${ui.weight})`)
-  .join('\n')}
 `;
   }
 

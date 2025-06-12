@@ -130,7 +130,7 @@ export default function IntelligentCollectionComponent({
       setCollectionResult(null);
 
       const requestData = {
-        userId,
+        userProfile,
         options: {
           queryCount: options.queryCount,
           maxResultsPerQuery: options.maxResultsPerQuery,
@@ -203,22 +203,18 @@ export default function IntelligentCollectionComponent({
         type: result.type,
       }));
 
-      // ユーザープロファイルから記事生成用のプロファイルを作成
-      const articleProfile = {
-        techLevel: userProfile?.profile?.techLevel || 'intermediate',
-        interests: [
-          ...(userProfile?.interests?.categories || []),
-          ...(userProfile?.interests?.tags || []),
-        ].slice(0, 10),
-        preferredStyle: userProfile?.profile?.preferredStyle || 'balanced',
-      };
+      const token = AuthManager.getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
-      const response = await fetch('/api/articles/generate', {
+      const response = await fetch('/api/ai/article-generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           sources: sourcesToUse,
-          userProfile: articleProfile,
+          userProfile,
           saveToDatabase: true,
           useOpenAI: true,
         }),

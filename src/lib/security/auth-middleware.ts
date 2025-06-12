@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 // 認証が必要なAPIパスの定義
-const PROTECTED_PATHS = [
-  '/api/admin',
-  '/api/articles/generate',
-  '/api/ai',
-  '/api/batch',
-  '/api/users',
-];
+const PROTECTED_PATHS = ['/api/admin', '/api/ai', '/api/batch', '/api/users'];
 
 // 管理者専用APIパスの定義
 const ADMIN_ONLY_PATHS = ['/api/admin', '/api/debug', '/api/users'];

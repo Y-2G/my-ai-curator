@@ -9,40 +9,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { AuthManager } from '@/lib/auth';
 import IntelligentCollectionComponent from '@/components/ui/IntelligentCollectionComponent';
-
-interface UserProfile {
-  id: string;
-  email: string;
-  name: string;
-  profile?: {
-    techLevel?: 'beginner' | 'intermediate' | 'advanced';
-    preferredStyle?: 'technical' | 'casual' | 'balanced';
-    bio?: string;
-  };
-  interests?: {
-    categories?: string[];
-    tags?: string[];
-    keywords?: string[];
-  };
-  userInterests?: Array<{
-    id: string;
-    keyword: string;
-    weight: number;
-    lastUsed: string;
-  }>;
-  stats?: {
-    articlesCount?: number;
-    interestsCount?: number;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-const TECH_LEVELS = [
-  { value: 'beginner', label: '初心者' },
-  { value: 'intermediate', label: '中級者' },
-  { value: 'advanced', label: '上級者' },
-];
+import { UserProfile } from '@/lib/ai/types';
 
 const PREFERRED_STYLES = [
   { value: 'technical', label: '技術的' },
@@ -114,7 +81,7 @@ const POPULAR_TAGS = [
 ];
 
 function AdminPageContent() {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -183,7 +150,7 @@ function AdminPageContent() {
 
       if (data.success) {
         const userData = data.data;
-        setUser(userData);
+        setUserProfile(userData);
         setFormData({
           name: userData.name || '',
           techLevel: userData.profile?.techLevel || 'intermediate',
@@ -245,7 +212,7 @@ function AdminPageContent() {
       const data = await response.json();
 
       if (data.success) {
-        setUser(data.data);
+        setUserProfile(data.data);
         setSuccessMessage('プロファイルを保存しました');
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
@@ -393,7 +360,7 @@ function AdminPageContent() {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          userId: authUser.id,
+          userProfile,
           options: {
             queryCount: 5,
             maxResultsPerQuery: 8,
@@ -430,27 +397,18 @@ function AdminPageContent() {
         type: result.type,
       }));
 
-      const articleProfile = {
-        techLevel: user?.profile?.techLevel || 'intermediate',
-        interests: [...(user?.interests?.categories || []), ...(user?.interests?.tags || [])].slice(
-          0,
-          10
-        ),
-        preferredStyle: user?.profile?.preferredStyle || 'balanced',
-      };
-
       // 認証トークンを取得
       const headers2: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) {
         headers2['Authorization'] = `Bearer ${token}`;
       }
 
-      const articleResponse = await fetch('/api/articles/generate', {
+      const articleResponse = await fetch('/api/ai/article-generate', {
         method: 'POST',
         headers: headers2,
         body: JSON.stringify({
           sources: sourcesToUse,
-          userProfile: articleProfile,
+          userProfile,
           saveToDatabase: true,
           useOpenAI: true,
         }),
@@ -557,15 +515,16 @@ function AdminPageContent() {
           </div>
         )}
 
-        {user && authUser && (
+        {userProfile && authUser && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-800 font-semibold">👤 ログイン中</p>
                 <p className="text-blue-600 text-sm">
-                  {authUser.name} ({authUser.email}) | 生成記事: {user.stats?.articlesCount || 0}件
-                  | 興味キーワード: {user.stats?.interestsCount || 0}個 | 最終更新:{' '}
-                  {new Date(user.updatedAt).toLocaleDateString('ja-JP')}
+                  {authUser.name} ({authUser.email}) | 生成記事:{' '}
+                  {userProfile.stats?.articlesCount || 0}件 | 興味キーワード:{' '}
+                  {userProfile.stats?.interestsCount || 0}個 | 最終更新:{' '}
+                  {new Date(userProfile.updatedAt).toLocaleDateString('ja-JP')}
                 </p>
               </div>
             </div>
@@ -578,11 +537,11 @@ function AdminPageContent() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>総記事数:</span>
-                <span>{user?.stats?.articlesCount || 0}件</span>
+                <span>{userProfile?.stats?.articlesCount || 0}件</span>
               </div>
               <div className="flex justify-between">
                 <span>興味キーワード:</span>
-                <span>{user?.stats?.interestsCount || 0}個</span>
+                <span>{userProfile?.stats?.interestsCount || 0}個</span>
               </div>
               <div className="flex justify-between">
                 <span>ステータス:</span>
@@ -641,7 +600,7 @@ function AdminPageContent() {
           <p className="text-gray-600 text-sm mb-4">
             あなたの興味プロファイルに基づいて、AIが自動で最新の技術情報を収集します
           </p>
-          <IntelligentCollectionComponent userId={authUser?.id} userProfile={user} />
+          <IntelligentCollectionComponent userId={authUser?.id} userProfile={userProfile} />
         </Card>
 
         {/* プロファイル設定セクション（既存のコード） */}
@@ -655,16 +614,6 @@ function AdminPageContent() {
                 value={formData.name}
                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="お名前を入力"
-              />
-
-              <Select
-                label="技術レベル"
-                value={formData.techLevel}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, techLevel: e.target.value as any }))
-                }
-                options={TECH_LEVELS}
-                helperText="AIが記事の難易度を調整する際に使用"
               />
 
               <Select

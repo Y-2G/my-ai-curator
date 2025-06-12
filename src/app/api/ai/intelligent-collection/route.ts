@@ -2,49 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { searchQueryGenerator } from '@/lib/ai/services/search-query-generator';
 import { webSearchCollector } from '@/lib/collectors/web-search-collector';
-import { PrismaClient } from '@prisma/client';
 
 // ランタイム設定
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const prisma = new PrismaClient();
-
-// リクエストスキーマ
-const IntelligentCollectionSchema = z.object({
-  userId: z.string().optional(),
-  options: z
-    .object({
-      queryCount: z.number().min(1).max(10).default(5),
-      maxResultsPerQuery: z.number().min(1).max(20).default(8),
-      includeLatestTrends: z.boolean().default(true),
-      focusAreas: z.array(z.string()).default([]),
-      searchDepth: z.enum(['surface', 'intermediate', 'deep']).default('intermediate'),
-    })
-    .optional(),
-});
-
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, options = {} } = IntelligentCollectionSchema.parse(body);
-
     const startTime = Date.now();
-    // Starting intelligent collection
 
-    // ユーザープロファイルの取得
-    let userProfile;
-    if (userId) {
-      userProfile = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          userInterests: {
-            orderBy: { weight: 'desc' },
-            take: 15,
-          },
-        },
-      });
-    }
+    const { userProfile, options } = await request.json();
 
     if (!userProfile) {
       return NextResponse.json(
@@ -56,46 +23,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // User profile loaded successfully
-
-    // 1. AI検索クエリ生成
+    // AI検索クエリ生成
     // Generating search queries
-    const searchQueries = await searchQueryGenerator.generateSearchQueries(
-      {
-        id: userProfile.id,
-        name: userProfile.name,
-        email: userProfile.email,
-        profile: userProfile.profile as {
-          preferredStyle?: 'technical' | 'casual' | 'balanced';
-          bio?: string;
-        },
-        interests: userProfile.interests as {
-          categories?: string[];
-          tags?: string[];
-          keywords?: string[];
-        },
-        userInterests: userProfile.userInterests.map((ui) => ({
-          keyword: ui.keyword,
-          weight: ui.weight,
-          lastUsed: ui.lastUsed.toISOString(),
-        })),
-      },
-      {
-        count: (options as any).queryCount || 5,
-        focusAreas: (options as any).focusAreas || [],
-      }
-    );
+    const searchQueries = await searchQueryGenerator.generateSearchQueries(userProfile, {
+      count: (options as any).queryCount || 5,
+      focusAreas: (options as any).focusAreas || [],
+    });
 
-    // Search queries generated
-
-    // 2. Web検索実行
-    // Executing web searches
+    // Web検索実行
     const searchResults = await webSearchCollector.searchMultipleQueries(searchQueries, {
       maxResultsPerQuery: (options as any).maxResultsPerQuery || 8,
       concurrency: 3,
     });
-
-    // Web searches completed
 
     // 3. 結果の統合と整理
     const aggregatedResults: any[] = [];

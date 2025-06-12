@@ -49,16 +49,6 @@ export type SourceType =
   | 'article'
   | 'test';
 
-export interface RawContentData {
-  title: string;
-  url: string;
-  summary: string;
-  publishedAt: string;
-  source: string;
-  type: SourceType;
-  metadata: Record<string, any>;
-}
-
 export interface GeneratedArticle {
   title: string;
   summary: string;
@@ -67,13 +57,6 @@ export interface GeneratedArticle {
   tags: string[];
   sources: Omit<Source, 'id'>[];
   confidence: number;
-}
-
-export interface UserProfile {
-  techLevel: string;
-  interests: string[];
-  preferredStyle: string;
-  recentTopics?: string[];
 }
 
 export interface PaginationParams {

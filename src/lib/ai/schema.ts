@@ -21,3 +21,17 @@ export const CategoryClassificationSchema = z.object({
   category: z.string(),
   confidence: z.number().min(0).max(1),
 });
+
+// 検索リクエストスキーマ
+export const IntelligentCollectionSchema = z.object({
+  userId: z.string().optional(),
+  options: z
+    .object({
+      queryCount: z.number().min(1).max(10).default(5),
+      maxResultsPerQuery: z.number().min(1).max(20).default(8),
+      includeLatestTrends: z.boolean().default(true),
+      focusAreas: z.array(z.string()).default([]),
+      searchDepth: z.enum(['surface', 'intermediate', 'deep']).default('intermediate'),
+    })
+    .optional(),
+});

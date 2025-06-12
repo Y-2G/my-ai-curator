@@ -7,14 +7,13 @@ import {
 
 // AI関連の型定義
 
-export interface UserInterestProfile {
+export interface UserProfile {
   id: string;
-  name: string;
   email: string;
+  name: string;
   profile?: {
     preferredStyle?: 'technical' | 'casual' | 'balanced';
     bio?: string;
-    location?: string;
   };
   interests?: {
     categories?: string[];
@@ -22,10 +21,17 @@ export interface UserInterestProfile {
     keywords?: string[];
   };
   userInterests?: Array<{
+    id: string;
     keyword: string;
     weight: number;
     lastUsed: string;
   }>;
+  stats?: {
+    articlesCount?: number;
+    interestsCount?: number;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SearchQuery {
@@ -51,4 +57,13 @@ export interface PromptTemplate {
   version: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RawContentData {
+  title: string;
+  url: string;
+  summary: string;
+  publishedAt: Date;
+  source: string;
+  type: string;
 }

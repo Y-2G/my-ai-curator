@@ -178,7 +178,7 @@ async function generateArticle(
       preferredStyle: user.profile?.preferredStyle || 'balanced',
     };
 
-    const articleResponse = await fetch(`${env.NEXT_PUBLIC_APP_URL}/api/articles/generate`, {
+    const articleResponse = await fetch(`${env.NEXT_PUBLIC_APP_URL}/api/ai/article-generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,26 +1,18 @@
 import PromptManager from '../prompts';
-import { CategoryClassification, GeneratedArticle, InterestScore } from '../types';
+import {
+  CategoryClassification,
+  GeneratedArticle,
+  InterestScore,
+  RawContentData,
+  UserProfile,
+} from '../types';
 import {
   CategoryClassificationSchema,
   GeneratedArticleSchema,
   InterestScoreSchema,
 } from '../schema';
 import { model, openai } from '../openai';
-
-export interface UserProfile {
-  techLevel: 'beginner' | 'intermediate' | 'advanced';
-  interests: string[];
-  preferredStyle: 'technical' | 'casual' | 'balanced';
-}
-
-export interface RawContentData {
-  title: string;
-  url: string;
-  summary: string;
-  publishedAt: Date;
-  source: string;
-  type: string;
-}
+import { formatUserProfile } from '../utiles';
 
 export class ArticleGenerator {
   /**
@@ -28,7 +20,7 @@ export class ArticleGenerator {
    */
   async generateArticle(
     sources: RawContentData[],
-    userProfile?: UserProfile
+    userProfile: UserProfile
   ): Promise<GeneratedArticle> {
     const prompt = this.buildArticleGenerationPrompt(sources, userProfile);
 
@@ -70,12 +62,13 @@ export class ArticleGenerator {
     content: RawContentData,
     userProfile: UserProfile
   ): Promise<InterestScore> {
+    const userInfo = formatUserProfile(userProfile);
     const prompt = `
 以下のコンテンツについて、ユーザーの興味度を0-10のスコアで評価してください。
 
 ユーザープロフィール:
-- 興味分野: ${userProfile.interests.join(', ')}
-- 好むスタイル: ${userProfile.preferredStyle}
+- 興味分野: ${userInfo}
+- 好むスタイル: ${userProfile.profile?.preferredStyle}
 
 コンテンツ:
 - タイトル: ${content.title}
@@ -187,7 +180,7 @@ ${availableCategories.join(', ')}
    */
   private buildArticleGenerationPrompt(
     sources: RawContentData[],
-    userProfile?: UserProfile
+    userProfile: UserProfile
   ): string {
     const sourcesSection = sources
       .map(
@@ -202,17 +195,19 @@ ${availableCategories.join(', ')}
       )
       .join('\n');
 
+    const userInfo = formatUserProfile(userProfile);
+
     const userProfileSection = `
 # 読者プロフィール
-- 興味分野: ${userProfile?.interests.join(', ')}
-- 好む記事スタイル: ${userProfile?.preferredStyle}
+- 興味分野: ${userInfo}
+- 好む記事スタイル: ${userProfile?.profile?.preferredStyle}
 `;
     // プロンプトマネージャーから「article-generation」テンプレートを使用
     return PromptManager.renderTemplate('article-generation', {
       sources: sourcesSection,
       userProfile: userProfileSection,
       targetLength: '600',
-      style: userProfile?.preferredStyle || 'balanced',
+      style: userProfile?.profile?.preferredStyle || 'balanced',
     });
   }
 }
