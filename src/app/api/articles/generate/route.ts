@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openAIService } from '@/lib/ai/openai-service';
-import type { UserProfile, RawContentData } from '@/lib/ai/openai-service';
+import {
+  type UserProfile,
+  type RawContentData,
+  ArticleGenerator,
+} from '@/lib/ai/services/article-generator';
 
 // ランタイム設定
 export const runtime = 'nodejs';
@@ -8,19 +11,18 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { 
-      sources, 
-      userProfile,
-      saveToDatabase = false,
-      useOpenAI = true 
-    } = await request.json();
+    const ag = new ArticleGenerator();
+    const { sources, userProfile, saveToDatabase = false, useOpenAI = true } = await request.json();
 
     // ソースデータの検証
     if (!sources || sources.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'No sources provided',
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No sources provided',
+        },
+        { status: 400 }
+      );
     }
 
     // ユーザープロファイルのデフォルト値
@@ -50,16 +52,16 @@ export async function POST(request: NextRequest) {
       // OpenAIを使用して記事生成
       try {
         const startTime = Date.now();
-        const aiArticle = await openAIService.generateArticle(rawSources, profile);
+        const aiArticle = await ag.generateArticle(rawSources, profile);
         const processingTime = Date.now() - startTime;
 
         // カテゴリのマッピング（実際のDBカテゴリに合わせる）
         const categoryMap: Record<string, string> = {
-          'プログラミング': 'プログラミング',
+          プログラミング: 'プログラミング',
           'AI・機械学習': 'AI・機械学習',
-          'Web開発': 'Web開発',
-          'DevOps': 'DevOps',
-          'セキュリティ': 'セキュリティ',
+          Web開発: 'Web開発',
+          DevOps: 'DevOps',
+          セキュリティ: 'セキュリティ',
         };
 
         generatedArticle = {
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
 
         // 興味度スコアの計算
         if (profile) {
-          const interestResult = await openAIService.calculateInterestScore(
+          const interestResult = await ag.calculateInterestScore(
             rawSources[0], // 最初のソースで代表
             profile
           );
@@ -99,7 +101,6 @@ export async function POST(request: NextRequest) {
           confidence: aiArticle.confidence,
           wordCount: aiArticle.content.length,
         };
-
       } catch (aiError) {
         console.error('OpenAI generation error:', aiError);
         // OpenAIエラー時はフォールバック
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
           content: generatedArticle.content,
           category: generatedArticle.category,
           tags: generatedArticle.tags,
-          sources: generatedArticle.sources.map(s => ({
+          sources: generatedArticle.sources.map((s) => ({
             title: s.title,
             url: s.url,
             type: s.type,
@@ -143,11 +144,13 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         article: generatedArticle,
-        savedArticle: savedArticle ? {
-          id: savedArticle.id,
-          title: savedArticle.title,
-          createdAt: savedArticle.createdAt,
-        } : null,
+        savedArticle: savedArticle
+          ? {
+              id: savedArticle.id,
+              title: savedArticle.title,
+              createdAt: savedArticle.createdAt,
+            }
+          : null,
         metadata: {
           ...metadata,
           savedToDatabase: !!savedArticle,
@@ -155,14 +158,16 @@ export async function POST(request: NextRequest) {
         warnings: [],
       },
     });
-
   } catch (error) {
     console.error('Article generation error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Article generation failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Article generation failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -215,13 +220,20 @@ function generateSimpleContent(sources: any[], topic: string): string {
 
 ## 主要なポイント
 
-${sources?.slice(0, 5).map((source, index) => `
+${
+  sources
+    ?.slice(0, 5)
+    .map(
+      (source, index) => `
 ### ${index + 1}. ${source.title || '情報ソース'}
 
 ${source.summary || source.description || 'この情報源から重要な知見が得られました。'}
 
 **ソース**: [${source.source || 'Unknown'}](${source.url || '#'})
-`).join('') || '・最新の技術動向について重要な情報があります。'}
+`
+    )
+    .join('') || '・最新の技術動向について重要な情報があります。'
+}
 
 ## まとめ
 

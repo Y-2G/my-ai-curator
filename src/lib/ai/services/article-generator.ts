@@ -1,37 +1,11 @@
-import OpenAI from 'openai';
-import { z } from 'zod';
-import PromptManager from './prompts';
-
-// OpenAI クライアントの初期化
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// 記事生成のレスポンススキーマ
-const GeneratedArticleSchema = z.object({
-  title: z.string(),
-  summary: z.string(),
-  content: z.string(),
-  category: z.string(),
-  tags: z.array(z.string()),
-  confidence: z.number().min(0).max(1),
-});
-
-// 興味度スコアのレスポンススキーマ
-const InterestScoreSchema = z.object({
-  score: z.number().min(0).max(10),
-  reasoning: z.string(),
-});
-
-// カテゴリ分類のレスポンススキーマ
-const CategoryClassificationSchema = z.object({
-  category: z.string(),
-  confidence: z.number().min(0).max(1),
-});
-
-export type GeneratedArticle = z.infer<typeof GeneratedArticleSchema>;
-export type InterestScore = z.infer<typeof InterestScoreSchema>;
-export type CategoryClassification = z.infer<typeof CategoryClassificationSchema>;
+import PromptManager from '../prompts';
+import { CategoryClassification, GeneratedArticle, InterestScore } from '../types';
+import {
+  CategoryClassificationSchema,
+  GeneratedArticleSchema,
+  InterestScoreSchema,
+} from '../schema';
+import { model, openai } from '../openai';
 
 export interface UserProfile {
   techLevel: 'beginner' | 'intermediate' | 'advanced';
@@ -48,10 +22,7 @@ export interface RawContentData {
   type: string;
 }
 
-export class OpenAIService {
-  private model = 'gpt-4o-mini'; // コスト効率の良いモデル
-  public openai = openai; // 外部からアクセス可能にする
-
+export class ArticleGenerator {
   /**
    * 複数の情報源から記事を生成
    */
@@ -63,7 +34,7 @@ export class OpenAIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: this.model,
+        model: model,
         messages: [
           {
             role: 'system',
@@ -120,7 +91,7 @@ export class OpenAIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: this.model,
+        model: model,
         messages: [
           {
             role: 'system',
@@ -178,7 +149,7 @@ ${availableCategories.join(', ')}
 
     try {
       const response = await openai.chat.completions.create({
-        model: this.model,
+        model: model,
         messages: [
           {
             role: 'system',
@@ -245,5 +216,3 @@ ${availableCategories.join(', ')}
     });
   }
 }
-
-export const openAIService = new OpenAIService();

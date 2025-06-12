@@ -1,4 +1,4 @@
-import { openAIService } from '../openai-service';
+import { openai } from '../openai';
 import { UserInterestProfile, SearchQuery } from '../types';
 
 export class SearchQueryGenerator {
@@ -22,7 +22,7 @@ export class SearchQueryGenerator {
         focusAreas,
       });
 
-      const response = await openAIService.openai.chat.completions.create({
+      const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
@@ -71,10 +71,12 @@ ${userInfo}
 タスク: 上記のユーザープロファイルに基づいて、${options.count}個の検索クエリを生成してください。
 
 要件:
-1. ユーザーの興味分野を考慮
-2. 実用的で具体的なクエリ
-3. 多様性のある検索内容
-4. 具体的な年代や日付などの情報をクエリに含めない
+- ユーザーの興味分野を考慮
+- 実用的で具体的なクエリ
+- 多様性のある検索内容
+
+!!重要!!
+- 年代や日付などの情報をクエリに含めない
 
 以下のJSON形式で回答してください:
 {
