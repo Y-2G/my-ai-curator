@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/security/logger';
 import { env } from '@/lib/env';
 import { prisma } from '@/lib/db/prisma';
+import { AVAILABLE_CATEGORIES } from '@/lib/ai/constants';
+import { UserProfile } from '@/lib/ai/types';
+import jwt from 'jsonwebtoken';
 
 // ランタイム設定
 export const runtime = 'nodejs';
@@ -13,26 +16,54 @@ const BATCH_CONFIG = {
   maxResultsPerQuery: 8, // クエリあたりの最大結果数
   articlesToGenerate: 3, // 生成する記事数
   useOpenAI: true, // OpenAI使用フラグ
+  includeLatestTrends: true,
+  searchDepth: 'intermediate' as const,
 };
+
+// 型定義
+interface BatchResults {
+  searchQueries: number;
+  searchResults: number;
+  articlesGenerated: number;
+  articlesDetail: Array<{
+    title: string;
+    id?: string;
+    category: string;
+    interestScore: number;
+  }>;
+  errors: string[];
+}
+
+interface CollectionResult {
+  title: string;
+  url: string;
+  summary: string;
+  publishedAt: string;
+  source: string;
+  type: string;
+}
 
 /**
  * バッチ処理のメインロジック
  */
-async function runBatchProcess(userId: string) {
+async function runBatchProcess(userId: string): Promise<BatchResults> {
   const startTime = Date.now();
-  const results = {
+  const results: BatchResults = {
     searchQueries: 0,
     searchResults: 0,
     articlesGenerated: 0,
-    errors: [] as string[],
+    articlesDetail: [],
+    errors: [],
   };
 
   try {
     logger.info('BATCH_START', { userId, config: BATCH_CONFIG });
 
     // Step 1: ユーザー情報取得
+    // userIdがemailの場合とIDの場合の両方に対応
+    const isEmail = userId.includes('@');
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: isEmail ? { email: userId } : { id: userId },
       include: {
         userInterests: {
           orderBy: { weight: 'desc' },
@@ -44,6 +75,31 @@ async function runBatchProcess(userId: string) {
     if (!user) {
       throw new Error('User not found');
     }
+
+    // UserProfileの構築
+    const profile = user.profile as any;
+    const interests = user.interests as any;
+
+    const userProfile: UserProfile = {
+      id: user.id,
+      name: user.name || '',
+      email: user.email || '',
+      profile: {
+        preferredStyle: profile?.preferredStyle || 'balanced',
+        bio: profile?.bio || '',
+      },
+      interests: {
+        categories: interests?.categories || [],
+        tags: interests?.tags || [],
+        keywords: user.userInterests?.map((ui) => ui.keyword) || [],
+      },
+      stats: {
+        articlesCount: await prisma.article.count({ where: { authorId: { equals: user.id } } }),
+        interestsCount: user.userInterests?.length || 0,
+      },
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    };
 
     // Step 2: AI情報収集
     logger.info('BATCH_COLLECTING', { userId });
@@ -57,13 +113,13 @@ async function runBatchProcess(userId: string) {
           Authorization: `Bearer ${process.env.INTERNAL_API_KEY}`,
         },
         body: JSON.stringify({
-          userId,
+          userProfile,
           options: {
             queryCount: BATCH_CONFIG.queryCount,
             maxResultsPerQuery: BATCH_CONFIG.maxResultsPerQuery,
-            includeLatestTrends: true,
+            includeLatestTrends: BATCH_CONFIG.includeLatestTrends,
             focusAreas: [],
-            searchDepth: 'intermediate',
+            searchDepth: BATCH_CONFIG.searchDepth,
           },
         }),
       }
@@ -75,7 +131,8 @@ async function runBatchProcess(userId: string) {
       throw new Error('Collection failed: ' + collectionData.error);
     }
 
-    results.searchQueries = collectionData.data.statistics.totalQueries;
+    results.searchQueries =
+      collectionData.data.statistics.queryCount || collectionData.data.statistics.totalQueries;
     results.searchResults = collectionData.data.statistics.totalResults;
 
     logger.info('BATCH_COLLECTION_COMPLETE', {
@@ -92,33 +149,49 @@ async function runBatchProcess(userId: string) {
     // Step 3: 記事生成（複数記事を並列処理）
     logger.info('BATCH_GENERATING_ARTICLES', { userId });
 
-    const articlesToGenerate = Math.min(
-      BATCH_CONFIG.articlesToGenerate,
-      Math.ceil(collectionData.data.results.length / 5)
+    // 収集した結果を記事ごとに分割
+    const resultsPerArticle = Math.floor(
+      collectionData.data.results.length / BATCH_CONFIG.articlesToGenerate
     );
+    const articlePromises = [];
 
-    const generatePromises = [];
+    for (let i = 0; i < BATCH_CONFIG.articlesToGenerate; i++) {
+      const startIdx = i * resultsPerArticle;
+      const endIdx =
+        i === BATCH_CONFIG.articlesToGenerate - 1
+          ? collectionData.data.results.length
+          : (i + 1) * resultsPerArticle;
 
-    for (let i = 0; i < articlesToGenerate; i++) {
-      const startIdx = i * 5;
-      const endIdx = Math.min((i + 1) * 5, collectionData.data.results.length);
-      const sourcesForArticle = collectionData.data.results.slice(startIdx, endIdx);
+      const sourcesForArticle = collectionData.data.results
+        .slice(startIdx, endIdx)
+        .map((result: CollectionResult) => ({
+          title: result.title,
+          url: result.url,
+          summary: result.summary,
+          publishedAt: result.publishedAt,
+          source: result.source,
+          type: result.type,
+        }));
 
-      if (sourcesForArticle.length === 0) continue;
-
-      const articlePromise = generateArticle(user, sourcesForArticle, i + 1);
-      generatePromises.push(articlePromise);
+      if (sourcesForArticle.length > 0) {
+        const promise = generateArticle(userProfile, sourcesForArticle, i + 1);
+        articlePromises.push(promise);
+      }
     }
 
-    const articleResults = await Promise.allSettled(generatePromises);
+    const articleResults = await Promise.allSettled(articlePromises);
 
     articleResults.forEach((result, index) => {
       if (result.status === 'fulfilled' && result.value.success) {
         results.articlesGenerated++;
+        if (result.value.articleDetail) {
+          results.articlesDetail.push(result.value.articleDetail);
+        }
         logger.info('BATCH_ARTICLE_GENERATED', {
           userId,
           articleIndex: index + 1,
           articleId: result.value.articleId,
+          title: result.value.articleDetail?.title,
         });
       } else {
         const error =
@@ -155,29 +228,28 @@ async function runBatchProcess(userId: string) {
  * 単一記事の生成
  */
 async function generateArticle(
-  user: any,
-  sources: any[],
+  userProfile: UserProfile,
+  sources: Array<{
+    title: string;
+    url: string;
+    summary: string;
+    publishedAt: string;
+    source: string;
+    type: string;
+  }>,
   articleIndex: number
-): Promise<{ success: boolean; articleId?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  articleId?: string;
+  articleDetail?: {
+    title: string;
+    id?: string;
+    category: string;
+    interestScore: number;
+  };
+  error?: string;
+}> {
   try {
-    const sourcesToUse = sources.map((result) => ({
-      title: result.title,
-      url: result.url,
-      summary: result.summary,
-      publishedAt: result.publishedAt,
-      source: result.source,
-      type: result.type,
-    }));
-
-    const articleProfile = {
-      techLevel: user.profile?.techLevel || 'intermediate',
-      interests: [...(user.interests?.categories || []), ...(user.interests?.tags || [])].slice(
-        0,
-        10
-      ),
-      preferredStyle: user.profile?.preferredStyle || 'balanced',
-    };
-
     const articleResponse = await fetch(`${env.NEXT_PUBLIC_APP_URL}/api/ai/article-generate`, {
       method: 'POST',
       headers: {
@@ -185,10 +257,11 @@ async function generateArticle(
         Authorization: `Bearer ${process.env.INTERNAL_API_KEY}`,
       },
       body: JSON.stringify({
-        sources: sourcesToUse,
-        userProfile: articleProfile,
+        sources,
+        userProfile,
         saveToDatabase: true,
         useOpenAI: BATCH_CONFIG.useOpenAI,
+        categories: AVAILABLE_CATEGORIES,
         metadata: {
           batchGenerated: true,
           articleIndex,
@@ -207,10 +280,19 @@ async function generateArticle(
     }
 
     const articleId = articleData.savedArticle?.id || articleData.data?.savedArticle?.id;
+    const article = articleData.article || articleData.data?.article;
 
     return {
       success: true,
       articleId,
+      articleDetail: article
+        ? {
+            title: article.title || '無題',
+            id: articleId,
+            category: article.category || '未分類',
+            interestScore: article.interestScore || 0,
+          }
+        : undefined,
     };
   } catch (error) {
     return {
@@ -225,11 +307,25 @@ async function generateArticle(
  */
 export async function POST(request: NextRequest) {
   try {
-    // 認証チェック（Cronシークレットまたは内部APIキー）
+    // 認証チェック
     const authHeader = request.headers.get('Authorization');
     const cronSecret = request.headers.get('X-Cron-Secret');
 
+    // トークンからユーザー認証
+    let isSessionAuthorized = false;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || '');
+        if (decoded) isSessionAuthorized = true;
+      } catch {
+        // Invalid token
+      }
+    }
+
+    // Cronシークレット、内部APIキー、またはセッション認証のいずれかで認証
     const isAuthorized =
+      isSessionAuthorized ||
       cronSecret === process.env.CRON_SECRET ||
       authHeader === `Bearer ${process.env.INTERNAL_API_KEY}`;
 
@@ -261,6 +357,7 @@ export async function POST(request: NextRequest) {
           userId,
           searchQueries: results.searchQueries,
           searchResults: results.searchResults,
+          articlesDetail: results.articlesDetail,
           errors: results.errors,
         },
       },
@@ -307,7 +404,24 @@ export async function GET(request: NextRequest) {
   try {
     // 認証チェック
     const authHeader = request.headers.get('Authorization');
-    if (authHeader !== `Bearer ${env.INTERNAL_API_KEY}` && env.NODE_ENV === 'production') {
+
+    // トークンからユーザー認証
+    let isSessionAuthorized = false;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || '');
+        if (decoded) isSessionAuthorized = true;
+      } catch {
+        // Invalid token
+      }
+    }
+
+    if (
+      !isSessionAuthorized &&
+      authHeader !== `Bearer ${env.INTERNAL_API_KEY}` &&
+      env.NODE_ENV === 'production'
+    ) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -88,7 +88,7 @@ function AdminPageContent() {
           bio: userData.profile?.bio || '',
           categories: userData.interests?.categories || [],
           tags: userData.interests?.tags || [],
-          keywords: userData.userInterests?.map((ui: any) => ui.keyword) || [],
+          keywords: userData.userInterests?.map((ui: { keyword: string }) => ui.keyword) || [],
         });
       } else {
         setError('プロファイルの読み込みに失敗しました');
@@ -220,41 +220,169 @@ function AdminPageContent() {
       setIsBatchRunning(true);
       setError(null);
       setSuccessMessage(null);
+      
+      // 設定可能なパラメータ（将来的にUIから設定可能にできる）
+      const batchConfig = {
+        articlesToGenerate: 3,
+        queryCount: 5,
+        maxResultsPerQuery: 8,
+        includeLatestTrends: true,
+        searchDepth: 'intermediate' as const,
+      };
+
       setBatchStatus('🔄 バッチ処理を開始しています...');
 
-      const response = await fetch('/api/batch/generate-articles', {
+      // Step 1: AI情報収集
+      setBatchStatus('🧠 AI検索クエリを生成中...');
+      const token = AuthManager.getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const collectionResponse = await fetch('/api/ai/intelligent-collection', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${AuthManager.getToken()}`,
-        },
-        body: JSON.stringify({ userId: authUser.id }),
+        headers,
+        body: JSON.stringify({
+          userProfile,
+          options: {
+            queryCount: batchConfig.queryCount,
+            maxResultsPerQuery: batchConfig.maxResultsPerQuery,
+            includeLatestTrends: batchConfig.includeLatestTrends,
+            focusAreas: [],
+            searchDepth: batchConfig.searchDepth,
+          },
+        }),
       });
 
-      const data = await response.json();
+      const collectionData = await collectionResponse.json();
 
-      if (!data.success) {
-        throw new Error(data.error || 'バッチ処理に失敗しました');
+      if (!collectionData.success) {
+        throw new Error('AI情報収集に失敗: ' + collectionData.error);
       }
+
+      setBatchStatus(
+        `🔍 情報収集完了 - ${collectionData.data.statistics.totalResults}件の結果を取得`
+      );
+
+      if (collectionData.data.results.length === 0) {
+        throw new Error('情報収集結果が0件のため、記事生成をスキップします');
+      }
+
+      // Step 2: 複数記事を並列生成
+      setBatchStatus(`📝 ${batchConfig.articlesToGenerate}件の記事を生成中...`);
+
+      // 収集した結果を記事ごとに分割
+      const resultsPerArticle = Math.floor(
+        collectionData.data.results.length / batchConfig.articlesToGenerate
+      );
+      const articlePromises = [];
+      const articlesGenerated: Array<{
+        title: string;
+        id?: string;
+        category: string;
+        interestScore: number;
+      }> = [];
+
+      for (let i = 0; i < batchConfig.articlesToGenerate; i++) {
+        const startIdx = i * resultsPerArticle;
+        const endIdx =
+          i === batchConfig.articlesToGenerate - 1
+            ? collectionData.data.results.length
+            : (i + 1) * resultsPerArticle;
+
+        const sourcesForArticle = collectionData.data.results
+          .slice(startIdx, endIdx)
+          .map((result: { title: string; url: string; summary: string; publishedAt: string; source: string; type: string }) => ({
+            title: result.title,
+            url: result.url,
+            summary: result.summary,
+            publishedAt: result.publishedAt,
+            source: result.source,
+            type: result.type,
+          }));
+
+        if (sourcesForArticle.length > 0) {
+          const promise = fetch('/api/ai/article-generate', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              sources: sourcesForArticle,
+              userProfile,
+              saveToDatabase: true,
+              useOpenAI: true,
+              categories: AVAILABLE_CATEGORIES,
+            }),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.success) {
+                articlesGenerated.push({
+                  title: data.article?.title || data.data?.article?.title || '無題',
+                  id: data.savedArticle?.id || data.data?.savedArticle?.id,
+                  category: data.article?.category || data.data?.article?.category || '未分類',
+                  interestScore: data.article?.interestScore || data.data?.article?.interestScore || 0,
+                });
+                setBatchStatus(
+                  `📝 記事生成中... (${articlesGenerated.length}/${batchConfig.articlesToGenerate})`
+                );
+              }
+              return data;
+            })
+            .catch((error) => {
+              console.error(`記事${i + 1}の生成エラー:`, error);
+              return { success: false, error: error.message };
+            });
+
+          articlePromises.push(promise);
+        }
+      }
+
+      // 並列実行して結果を待つ
+      const articleResults = await Promise.all(articlePromises);
 
       setBatchStatus('');
 
-      const results = data.data;
-      setSuccessMessage(
-        `✅ バッチ処理完了！\n` +
-          `検索クエリ: ${results.searchQueries}件\n` +
-          `検索結果: ${results.searchResults}件\n` +
-          `生成記事: ${results.articlesGenerated}件`
-      );
+      // 結果の集計
+      const successCount = articleResults.filter((r) => r.success).length;
+      const failCount = articleResults.length - successCount;
 
-      if (results.errors.length > 0) {
-        console.error('Batch errors:', results.errors);
+      // 詳細な結果メッセージ
+      let resultMessage = `✅ バッチ処理完了！\n\n`;
+      resultMessage += `📊 処理結果:\n`;
+      resultMessage += `• 検索クエリ: ${collectionData.data.statistics.queryCount}件\n`;
+      resultMessage += `• 検索結果: ${collectionData.data.statistics.totalResults}件\n`;
+      resultMessage += `• 生成成功: ${successCount}件\n`;
+      if (failCount > 0) {
+        resultMessage += `• 生成失敗: ${failCount}件\n`;
       }
 
-      // 記事一覧を更新するため、数秒後にリロード
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
+      if (articlesGenerated.length > 0) {
+        resultMessage += `\n📚 生成された記事:\n`;
+        articlesGenerated.forEach((article, idx) => {
+          resultMessage += `${idx + 1}. ${article.title}\n`;
+          resultMessage += `   カテゴリ: ${article.category} | 興味スコア: ${article.interestScore.toFixed(1)}\n`;
+        });
+      }
+
+      setSuccessMessage(resultMessage);
+
+      // 生成された記事を新しいタブで開く
+      if (articlesGenerated.length > 0) {
+        setTimeout(() => {
+          articlesGenerated.forEach((article) => {
+            if (article.id) {
+              window.open(`/articles/${article.id}`, '_blank');
+            }
+          });
+        }, 1000);
+      }
+
+      // エラーログ
+      const errors = articleResults.filter((r) => !r.success).map((r) => r.error);
+      if (errors.length > 0) {
+        console.error('Batch process errors:', errors);
+      }
     } catch (error) {
       console.error('Batch process error:', error);
       setError(error instanceof Error ? error.message : 'バッチ処理でエラーが発生しました');
@@ -317,7 +445,7 @@ function AdminPageContent() {
       // Step 2: 記事生成
       setPipelineStatus('📝 記事を生成中...');
 
-      const sourcesToUse = collectionData.data.results.map((result: any) => ({
+      const sourcesToUse = collectionData.data.results.map((result: { title: string; url: string; summary: string; publishedAt: string; source: string; type: string }) => ({
         title: result.title,
         url: result.url,
         summary: result.summary,
