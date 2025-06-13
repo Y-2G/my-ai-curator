@@ -1,4 +1,4 @@
-import type { RawContentData } from '@/lib/types';
+import type { RawContentData } from '@/lib/ai/types';
 import { Logger } from '@/lib/utils/logger';
 import { RateLimiter } from '@/lib/utils/rate-limiter';
 

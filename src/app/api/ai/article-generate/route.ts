@@ -95,7 +95,14 @@ export async function POST(request: NextRequest) {
       };
     } catch (aiError) {
       console.error('OpenAI generation error:', aiError);
-      return [];
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'AI generation failed',
+          message: aiError instanceof Error ? aiError.message : 'Unknown error',
+        },
+        { status: 500 }
+      );
     }
 
     let savedArticle = null;
