@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     logger.info('CRON_JOB_START', {
       path: '/api/cron/daily-articles',
       time: new Date().toISOString(),
+      cronSecretLength: env.CRON_SECRET?.length || 0,
     });
 
     // 管理者ユーザーのIDを取得（実際の運用では設定から取得）
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Cron-Secret': env.CRON_SECRET,
+        'Authorization': `Bearer ${env.INTERNAL_API_KEY}`,
       },
       body: JSON.stringify({
         userId: adminUserId,

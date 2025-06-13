@@ -163,9 +163,9 @@ async function main() {
         bio: 'My AI Curatorの管理者アカウント',
       },
       interests: {
-        categories: ['ガジェット・テック', 'エンタメ・カルチャー', '話題・トレンド', 'キャリア・ビジネス'],
-        tags: ['React', 'TypeScript', 'Next.js', 'Node.js', 'AI', 'ChatGPT'],
-        keywords: ['Next.js', 'React', 'TypeScript', 'AI', 'OpenAI', 'Web開発'],
+        categories: [],
+        tags: [],
+        keywords: [],
       },
     },
   });
