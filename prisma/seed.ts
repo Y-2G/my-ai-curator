@@ -9,48 +9,93 @@ async function main() {
   // カテゴリの作成
   const categories = await Promise.all([
     prisma.category.upsert({
-      where: { name: 'プログラミング' },
+      where: { name: '話題・トレンド' },
       update: {},
       create: {
-        name: 'プログラミング',
-        description: 'プログラミング言語、フレームワーク、開発手法に関する記事',
-        color: '#3B82F6',
+        name: '話題・トレンド',
+        description: '最新の話題やトレンド情報',
+        color: '#FF6B6B',
       },
     }),
     prisma.category.upsert({
-      where: { name: 'AI・機械学習' },
+      where: { name: 'ライフスタイル' },
       update: {},
       create: {
-        name: 'AI・機械学習',
-        description: 'AI、機械学習、深層学習に関する最新技術と応用',
-        color: '#8B5CF6',
+        name: 'ライフスタイル',
+        description: '日常生活や暮らしに関する情報',
+        color: '#4ECDC4',
       },
     }),
     prisma.category.upsert({
-      where: { name: 'Web開発' },
+      where: { name: 'フード＆レシピ' },
       update: {},
       create: {
-        name: 'Web開発',
-        description: 'フロントエンド、バックエンド、フルスタック開発',
-        color: '#10B981',
+        name: 'フード＆レシピ',
+        description: '料理やグルメに関する情報',
+        color: '#FFE66D',
       },
     }),
     prisma.category.upsert({
-      where: { name: 'DevOps' },
+      where: { name: 'ファッション＆ビューティー' },
       update: {},
       create: {
-        name: 'DevOps',
-        description: 'CI/CD、インフラ、クラウド、コンテナ技術',
-        color: '#F59E0B',
+        name: 'ファッション＆ビューティー',
+        description: 'ファッションや美容に関する情報',
+        color: '#FF6B9D',
       },
     }),
     prisma.category.upsert({
-      where: { name: 'セキュリティ' },
+      where: { name: 'おでかけ・旅行' },
       update: {},
       create: {
-        name: 'セキュリティ',
-        description: 'サイバーセキュリティ、脆弱性、暗号化技術',
-        color: '#EF4444',
+        name: 'おでかけ・旅行',
+        description: '旅行や観光スポットの情報',
+        color: '#95E1D3',
+      },
+    }),
+    prisma.category.upsert({
+      where: { name: 'エンタメ・カルチャー' },
+      update: {},
+      create: {
+        name: 'エンタメ・カルチャー',
+        description: 'エンターテインメントや文化情報',
+        color: '#C7CEEA',
+      },
+    }),
+    prisma.category.upsert({
+      where: { name: 'ガジェット・テック' },
+      update: {},
+      create: {
+        name: 'ガジェット・テック',
+        description: 'テクノロジーやガジェット情報',
+        color: '#686DE0',
+      },
+    }),
+    prisma.category.upsert({
+      where: { name: 'キャリア・ビジネス' },
+      update: {},
+      create: {
+        name: 'キャリア・ビジネス',
+        description: 'キャリアやビジネスに関する情報',
+        color: '#30336B',
+      },
+    }),
+    prisma.category.upsert({
+      where: { name: 'ヘルス＆メンタル' },
+      update: {},
+      create: {
+        name: 'ヘルス＆メンタル',
+        description: '健康やメンタルヘルスに関する情報',
+        color: '#6AB04C',
+      },
+    }),
+    prisma.category.upsert({
+      where: { name: '社会・教養・雑学' },
+      update: {},
+      create: {
+        name: '社会・教養・雑学',
+        description: '社会問題や教養、雑学情報',
+        color: '#EB4D4B',
       },
     }),
   ]);
@@ -118,7 +163,7 @@ async function main() {
         bio: 'My AI Curatorの管理者アカウント',
       },
       interests: {
-        categories: ['プログラミング', 'AI・機械学習', 'Web開発', 'DevOps'],
+        categories: ['ガジェット・テック', 'エンタメ・カルチャー', '話題・トレンド', 'キャリア・ビジネス'],
         tags: ['React', 'TypeScript', 'Next.js', 'Node.js', 'AI', 'ChatGPT'],
         keywords: ['Next.js', 'React', 'TypeScript', 'AI', 'OpenAI', 'Web開発'],
       },
@@ -177,7 +222,7 @@ Next.js 15では、以下の主要な改善が行われました：
 - 改善されたエラーハンドリング
 
 これらの改善により、大規模なアプリケーションでも快適な開発が可能になりました。`,
-      categoryId: categories[2].id, // Web開発
+      categoryId: categories[6].id, // ガジェット・テック
       interestScore: 9,
       qualityScore: 8,
       tags: ['Next.js', 'React', 'TypeScript'],
@@ -206,7 +251,7 @@ GPT-4oは複雑なコードも理解し、適切な実装を提案できます�
 
 ## 4. ドキュメント作成
 コードからドキュメントを自動生成することができます。`,
-      categoryId: categories[1].id, // AI・機械学習
+      categoryId: categories[6].id, // ガジェット・テック
       interestScore: 8,
       qualityScore: 9,
       tags: ['ChatGPT', 'AI', 'LLM'],

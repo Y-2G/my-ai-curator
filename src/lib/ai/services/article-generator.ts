@@ -64,23 +64,22 @@ export class ArticleGenerator {
   ): Promise<InterestScore> {
     const userInfo = formatUserProfile(userProfile);
     const prompt = `
-以下のコンテンツについて、ユーザーの興味度を0-10のスコアで評価してください。
+    以下のコンテンツについて、ユーザーの興味度を0-10のスコアで評価してください。
 
-ユーザープロフィール:
-- 興味分野: ${userInfo}
-- 好むスタイル: ${userProfile.profile?.preferredStyle}
+    ユーザープロフィール:
+    - 興味分野: ${userInfo}
+    - 好むスタイル: ${userProfile.profile?.preferredStyle}
 
-コンテンツ:
-- タイトル: ${content.title}
-- 要約: ${content.summary}
-- ソース: ${content.source}
+    コンテンツ:
+    - タイトル: ${content.title}
+    - 要約: ${content.summary}
+    - ソース: ${content.source}
 
-以下のJSON形式で回答してください:
-{
-  "score": 数値（0-10）,
-  "reasoning": "スコアの理由"
-}
-`;
+    以下のJSON形式で回答してください:
+    {
+      "score": 数値（0-10）,
+      "reasoning": "スコアの理由"
+    }`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -122,23 +121,22 @@ export class ArticleGenerator {
    */
   async categorizeContent(
     content: string,
-    availableCategories: string[]
+    availableCategories?: string[]
   ): Promise<CategoryClassification> {
     const prompt = `
-以下のコンテンツを、利用可能なカテゴリのいずれかに分類してください。
+    以下のコンテンツを、利用可能なカテゴリのいずれかに分類してください。
 
-コンテンツ:
-${content.substring(0, 1000)}...
+    コンテンツ:
+    ${content.substring(0, 1000)}...
 
-利用可能なカテゴリ:
-${availableCategories.join(', ')}
+    利用可能なカテゴリ:
+    ${availableCategories?.join(', ')}
 
-以下のJSON形式で回答してください:
-{
-  "category": "選択したカテゴリ名",
-  "confidence": 信頼度（0-1）
-}
-`;
+    以下のJSON形式で回答してください:
+    {
+      "category": "選択したカテゴリ名",
+      "confidence": 信頼度（0-1）
+    }`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -167,9 +165,8 @@ ${availableCategories.join(', ')}
       return CategoryClassificationSchema.parse(parsedResponse);
     } catch (error) {
       console.error('OpenAI categorization error:', error);
-      // エラー時はデフォルトカテゴリを返す
       return {
-        category: availableCategories[0] || 'その他',
+        category: availableCategories?.[0] || 'その他',
         confidence: 0.5,
       };
     }
@@ -185,23 +182,22 @@ ${availableCategories.join(', ')}
     const sourcesSection = sources
       .map(
         (source, index) => `
-## ソース ${index + 1}
-- タイトル: ${source.title}
-- URL: ${source.url}
-- 要約: ${source.summary}
-- 公開日: ${source.publishedAt.toISOString()}
-- ソース: ${source.source}
-`
+            ## ソース ${index + 1}
+            - タイトル: ${source.title}
+            - URL: ${source.url}
+            - 要約: ${source.summary}
+            - 公開日: ${source.publishedAt.toISOString()}
+            `
       )
       .join('\n');
 
     const userInfo = formatUserProfile(userProfile);
 
     const userProfileSection = `
-# 読者プロフィール
-- 興味分野: ${userInfo}
-- 好む記事スタイル: ${userProfile?.profile?.preferredStyle}
-`;
+            # 読者プロフィール
+            - 興味分野: ${userInfo}
+            - 好む記事スタイル: ${userProfile?.profile?.preferredStyle}`;
+
     // プロンプトマネージャーから「article-generation」テンプレートを使用
     return PromptManager.renderTemplate('article-generation', {
       sources: sourcesSection,

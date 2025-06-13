@@ -6,6 +6,7 @@ import { Select } from './Select';
 import { Textarea } from './Textarea';
 import { Card } from './Card';
 import { AuthManager } from '@/lib/auth';
+import { AVAILABLE_CATEGORIES, SEARCH_DEPTH_OPTIONS } from '@/lib/ai/constants';
 
 interface UserProfile {
   id: string;
@@ -93,12 +94,6 @@ interface GeneratedArticle {
   tags: string[];
   confidence: number;
 }
-
-const SEARCH_DEPTH_OPTIONS = [
-  { value: 'surface', label: '概要・基本情報' },
-  { value: 'intermediate', label: '実用的な情報・事例' },
-  { value: 'deep', label: '技術的詳細・最新研究' },
-];
 
 export default function IntelligentCollectionComponent({
   userId,
@@ -217,6 +212,7 @@ export default function IntelligentCollectionComponent({
           userProfile,
           saveToDatabase: true,
           useOpenAI: true,
+          categories: AVAILABLE_CATEGORIES,
         }),
       });
 

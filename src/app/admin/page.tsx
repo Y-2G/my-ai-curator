@@ -10,75 +10,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { AuthManager } from '@/lib/auth';
 import IntelligentCollectionComponent from '@/components/ui/IntelligentCollectionComponent';
 import { UserProfile } from '@/lib/ai/types';
-
-const PREFERRED_STYLES = [
-  { value: 'technical', label: '技術的' },
-  { value: 'casual', label: 'カジュアル' },
-  { value: 'balanced', label: 'バランス型' },
-];
-
-const AVAILABLE_CATEGORIES = [
-  // 技術系
-  'プログラミング',
-  'AI・機械学習',
-  'Web開発',
-  'モバイル開発',
-  // ビジネス・キャリア
-  'ビジネス',
-  'スタートアップ',
-  'キャリア',
-  'マネジメント',
-  // 一般的なトピック
-  'ガジェット',
-  'サイエンス',
-  'デザイン',
-  'マーケティング',
-  // ライフスタイル
-  '生産性',
-  'リモートワーク',
-  '学習・教育',
-  'トレンド',
-];
-
-const POPULAR_TAGS = [
-  // プログラミング言語・フレームワーク
-  'React',
-  'TypeScript',
-  'Python',
-  'JavaScript',
-  'Next.js',
-  'Vue.js',
-  // AI・データ
-  'ChatGPT',
-  'AI',
-  '機械学習',
-  'データ分析',
-  'ディープラーニング',
-  // ツール・インフラ
-  'GitHub',
-  'Notion',
-  'Figma',
-  'Slack',
-  'VSCode',
-  // ビジネス・働き方
-  'リモートワーク',
-  'フリーランス',
-  'スタートアップ',
-  'DX',
-  'プロダクトマネジメント',
-  // トレンド・一般
-  'Web3',
-  'メタバース',
-  'サステナビリティ',
-  'イノベーション',
-  'UX/UI',
-  // 学習・スキル
-  'オンライン学習',
-  'スキルアップ',
-  'キャリアチェンジ',
-  'プログラミング学習',
-  '資格',
-];
+import { AVAILABLE_CATEGORIES, PREFERRED_STYLES, POPULAR_TAGS } from '@/lib/ai/constants';
 
 function AdminPageContent() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -98,7 +30,6 @@ function AdminPageContent() {
   // フォーム状態
   const [formData, setFormData] = useState({
     name: '',
-    techLevel: 'intermediate' as const,
     preferredStyle: 'balanced' as const,
     bio: '',
     categories: [] as string[],
@@ -153,7 +84,6 @@ function AdminPageContent() {
         setUserProfile(userData);
         setFormData({
           name: userData.name || '',
-          techLevel: userData.profile?.techLevel || 'intermediate',
           preferredStyle: userData.profile?.preferredStyle || 'balanced',
           bio: userData.profile?.bio || '',
           categories: userData.interests?.categories || [],
@@ -185,7 +115,6 @@ function AdminPageContent() {
       const updateData = {
         name: formData.name,
         profile: {
-          techLevel: formData.techLevel,
           preferredStyle: formData.preferredStyle,
           bio: formData.bio,
         },
@@ -388,7 +317,7 @@ function AdminPageContent() {
       // Step 2: 記事生成
       setPipelineStatus('📝 記事を生成中...');
 
-      const sourcesToUse = collectionData.data.results.slice(0, 5).map((result: any) => ({
+      const sourcesToUse = collectionData.data.results.map((result: any) => ({
         title: result.title,
         url: result.url,
         summary: result.summary,
@@ -411,6 +340,7 @@ function AdminPageContent() {
           userProfile,
           saveToDatabase: true,
           useOpenAI: true,
+          categories: AVAILABLE_CATEGORIES,
         }),
       });
 

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const ag = new ArticleGenerator();
-    const { sources, userProfile, useOpenAI = true } = await request.json();
+    const { sources, userProfile, useOpenAI = true, categories } = await request.json();
 
     if (!userProfile) {
       return NextResponse.json(
@@ -54,21 +54,12 @@ export async function POST(request: NextRequest) {
       const aiArticle = await ag.generateArticle(rawSources, userProfile);
       const processingTime = Date.now() - startTime;
 
-      // カテゴリのマッピング（実際のDBカテゴリに合わせる）
-      const categoryMap: Record<string, string> = {
-        プログラミング: 'プログラミング',
-        'AI・機械学習': 'AI・機械学習',
-        Web開発: 'Web開発',
-        DevOps: 'DevOps',
-        セキュリティ: 'セキュリティ',
-      };
-
       generatedArticle = {
         id: `article-${Date.now()}`,
         title: aiArticle.title,
         summary: aiArticle.summary,
         content: aiArticle.content,
-        category: categoryMap[aiArticle.category] || 'プログラミング',
+        category: aiArticle.category || '未分類',
         tags: aiArticle.tags,
         sources: rawSources.map((source, index) => ({
           id: `source-${index}`,
@@ -83,15 +74,17 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date().toISOString(),
       };
 
+      // カテゴリ分類
+      const { category } = await ag.categorizeContent(generatedArticle.content, categories);
+      generatedArticle.category = category;
+
       // 興味度スコアの計算
-      if (userProfile) {
-        const interestResult = await ag.calculateInterestScore(
-          rawSources[0], // 最初のソースで代表
-          userProfile
-        );
-        generatedArticle.interestScore = interestResult.score;
-        metadata.interestReasoning = interestResult.reasoning;
-      }
+      const interestResult = await ag.calculateInterestScore(
+        rawSources[0], // 最初のソースで代表
+        userProfile
+      );
+      generatedArticle.interestScore = interestResult.score;
+      metadata.interestReasoning = interestResult.reasoning;
 
       metadata = {
         ...metadata,
@@ -102,7 +95,6 @@ export async function POST(request: NextRequest) {
       };
     } catch (aiError) {
       console.error('OpenAI generation error:', aiError);
-      // OpenAIエラー時はフォールバック
       return [];
     }
 

@@ -13,7 +13,7 @@ export class SearchQueryGenerator {
       focusAreas?: string[];
     } = {}
   ): Promise<SearchQuery[]> {
-    const { count = 5, focusAreas = [] } = options;
+    const { count = 10, focusAreas = [] } = options;
 
     // Processing user profile for search query generation
     try {
@@ -86,7 +86,6 @@ ${userInfo}
       "category": "カテゴリ名",
       "priority": 1-10の数値（高いほど重要）,
       "reasoning": "このクエリを選んだ理由",
-      "sources": ["GitHub", "Stack Overflow", "Qiita", "Zenn", "公式ドキュメント", "技術ブログ"]
     }
   ]
 }
