@@ -21,10 +21,6 @@
     },
     {
       "path": "/api/cron/daily-articles",
-      "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/daily-articles",
       "schedule": "0 11 * * *"
     }
   ]
