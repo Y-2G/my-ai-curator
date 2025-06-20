@@ -16,8 +16,8 @@ function transformArticleData(dbArticle: ArticleWithRelations): Article {
     summary: dbArticle.summary,
     content: dbArticle.content,
     category: dbArticle.category,
-    tags: dbArticle.articleTags.map(at => at.tag),
-    sources: dbArticle.sources.map(source => ({
+    tags: dbArticle.articleTags.map((at) => at.tag),
+    sources: dbArticle.sources.map((source) => ({
       id: source.id,
       url: source.url,
       title: source.title,
@@ -43,16 +43,16 @@ function transformCategoryData(dbCategory: any): CategoryWithCount {
 
 async function FeaturedArticles() {
   try {
-    const result = await ArticleModel.findMany({ 
-      limit: 6, 
-      sort: 'interestScore' 
+    const result = await ArticleModel.findMany({
+      limit: 6,
+      sort: 'interestScore',
     });
     const articles = result.articles.map(transformArticleData);
 
     return (
       <section>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">最新の記事</h2>
+          <h2 className="text-2xl font-bold">注目の記事</h2>
           <Link href="/articles">
             <Button variant="ghost" size="sm">
               すべて見る →
@@ -74,9 +74,7 @@ async function FeaturedArticles() {
             </Button>
           </Link>
         </div>
-        <div className="text-center py-8 text-gray-500">
-          記事を読み込めませんでした
-        </div>
+        <div className="text-center py-8 text-gray-500">記事を読み込めませんでした</div>
       </section>
     );
   }
@@ -96,9 +94,7 @@ async function CategorySection() {
     console.error('Failed to load categories:', error);
     return (
       <section className="mb-12">
-        <div className="text-center py-8 text-gray-500">
-          カテゴリを読み込めませんでした
-        </div>
+        <div className="text-center py-8 text-gray-500">カテゴリを読み込めませんでした</div>
       </section>
     );
   }
@@ -116,7 +112,9 @@ export default function HomePage() {
             <span className="text-blue-600 dark:text-blue-400">キュレーションブログ</span>
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-            私が興味を持った記事をAIが検索・紹介。個人的なキュレーションブログです
+            私の興味に合わせた記事をAIが収集・紹介しています。
+            <br />
+            個人的なキュレーションブログです。
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/articles">

@@ -18,7 +18,7 @@ interface PageProps {
 
 export const metadata: Metadata = {
   title: '記事一覧',
-  description: 'AIがキュレーションした最新の技術記事一覧',
+  description: 'AIがキュレーションした最新記事一覧',
 };
 
 function transformArticleData(dbArticle: ArticleWithRelations): Article {
@@ -28,8 +28,8 @@ function transformArticleData(dbArticle: ArticleWithRelations): Article {
     summary: dbArticle.summary,
     content: dbArticle.content,
     category: dbArticle.category,
-    tags: dbArticle.articleTags.map(at => at.tag),
-    sources: dbArticle.sources.map(source => ({
+    tags: dbArticle.articleTags.map((at) => at.tag),
+    sources: dbArticle.sources.map((source) => ({
       id: source.id,
       url: source.url,
       title: source.title,
@@ -80,11 +80,7 @@ async function ArticlesContent({ searchParams }: PageProps) {
     );
   } catch (error) {
     console.error('Failed to load articles:', error);
-    return (
-      <div className="text-center py-8 text-gray-500">
-        記事を読み込めませんでした
-      </div>
-    );
+    return <div className="text-center py-8 text-gray-500">記事を読み込めませんでした</div>;
   }
 }
 
@@ -95,7 +91,7 @@ export default function ArticlesPage({ searchParams }: PageProps) {
     <div className="container mx-auto py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">記事一覧</h1>
-        <p className="text-gray-600 dark:text-gray-400">AIがキュレーションした最新の技術記事</p>
+        <p className="text-gray-600 dark:text-gray-400">AIがキュレーションした最新記事</p>
       </div>
 
       <Suspense fallback={<Loading />}>
