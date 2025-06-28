@@ -140,6 +140,34 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
     });
   } catch (error) {
     console.error('Article Delete API Error:', error);
+    
+    // Prismaエラーの詳細なハンドリング
+    if (error instanceof Error) {
+      // Prisma Accelerateのタイムアウトエラー
+      if (error.message.includes('P6005') || error.message.includes('timeout')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Database operation timed out. Please try again.',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          },
+          { status: 504 }
+        );
+      }
+      
+      // その他のPrismaエラー
+      if (error.message.includes('P5000') || error.message.includes('P6')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Database error occurred',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          },
+          { status: 503 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       {
         success: false,

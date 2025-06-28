@@ -419,19 +419,22 @@ export class ArticleService {
     }
 
     await prisma.$transaction(async (tx) => {
-      // 関連データを先に削除
-      await tx.source.deleteMany({
-        where: { articleId: id },
-      });
-
-      await tx.articleTag.deleteMany({
-        where: { articleId: id },
-      });
+      // 関連データを並列で削除（パフォーマンス向上）
+      await Promise.all([
+        tx.source.deleteMany({
+          where: { articleId: id },
+        }),
+        tx.articleTag.deleteMany({
+          where: { articleId: id },
+        }),
+      ]);
 
       // 記事を削除
       await tx.article.delete({
         where: { id },
       });
+    }, {
+      timeout: 14000, // Prisma Accelerateの15秒制限内に収める（14秒）
     });
 
     return true;
