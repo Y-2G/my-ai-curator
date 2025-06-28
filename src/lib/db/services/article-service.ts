@@ -298,6 +298,8 @@ export class ArticleService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      const startTime = Date.now();
+      
       const {
         title,
         summary,
@@ -342,56 +344,72 @@ export class ArticleService {
         },
       });
 
+      // ソースとタグの更新を並列実行
+      const updatePromises: Promise<any>[] = [];
+
       // ソースの更新
       if (sources !== undefined) {
-        // 既存のソースを削除
-        await tx.source.deleteMany({
-          where: { articleId: id },
-        });
+        updatePromises.push(
+          (async () => {
+            // 既存のソースを削除
+            await tx.source.deleteMany({
+              where: { articleId: id },
+            });
 
-        // 新しいソースを作成
-        if (sources.length > 0) {
-          await tx.source.createMany({
-            data: sources.map((source) => ({
-              articleId: id,
-              title: source.title,
-              url: source.url,
-              type: source.type,
-            })),
-          });
-        }
+            // 新しいソースを作成
+            if (sources.length > 0) {
+              await tx.source.createMany({
+                data: sources.map((source) => ({
+                  articleId: id,
+                  title: source.title,
+                  url: source.url,
+                  type: source.type,
+                })),
+              });
+            }
+          })()
+        );
       }
 
       // タグの更新
       if (tags !== undefined) {
-        // 既存のタグ関連を削除
-        await tx.articleTag.deleteMany({
-          where: { articleId: id },
-        });
+        updatePromises.push(
+          (async () => {
+            // 既存のタグ関連を削除
+            await tx.articleTag.deleteMany({
+              where: { articleId: id },
+            });
 
-        // 新しいタグを作成・関連付け
-        if (tags.length > 0) {
-          const tagRecords = await Promise.all(
-            tags.map((tagName) =>
-              tx.tag.upsert({
-                where: { name: tagName },
-                update: {},
-                create: { name: tagName },
-              })
-            )
-          );
+            // 新しいタグを作成・関連付け
+            if (tags.length > 0) {
+              const tagRecords = await Promise.all(
+                tags.map((tagName) =>
+                  tx.tag.upsert({
+                    where: { name: tagName },
+                    update: {},
+                    create: { name: tagName },
+                  })
+                )
+              );
 
-          await tx.articleTag.createMany({
-            data: tagRecords.map((tag) => ({
-              articleId: id,
-              tagId: tag.id,
-            })),
-          });
-        }
+              await tx.articleTag.createMany({
+                data: tagRecords.map((tag) => ({
+                  articleId: id,
+                  tagId: tag.id,
+                })),
+              });
+            }
+          })()
+        );
+      }
+
+      // 並列実行
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
       }
 
       // 更新された記事を関連データと一緒に取得
-      return await tx.article.findUniqueOrThrow({
+      const result = await tx.article.findUniqueOrThrow({
         where: { id },
         include: {
           category: true,
@@ -403,6 +421,13 @@ export class ArticleService {
           },
         },
       });
+      
+      const duration = Date.now() - startTime;
+      console.log(`Article update transaction completed in ${duration}ms`);
+      
+      return result;
+    }, {
+      timeout: 14000, // Prisma Accelerateの15秒制限内に収める（14秒）
     });
   }
 

@@ -104,6 +104,46 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     });
   } catch (error) {
     console.error('Article Update API Error:', error);
+    
+    // Prismaエラーの詳細なハンドリング
+    if (error instanceof Error) {
+      // Prisma Accelerateのタイムアウトエラー
+      if (error.message.includes('P6005') || error.message.includes('timeout')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Database operation timed out. Please try again.',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          },
+          { status: 504 }
+        );
+      }
+      
+      // その他のPrismaエラー
+      if (error.message.includes('P5000') || error.message.includes('P6')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Database error occurred',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          },
+          { status: 503 }
+        );
+      }
+      
+      // バリデーションエラー
+      if (error.message.includes('Invalid') || error.message.includes('required')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Invalid update data provided',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          },
+          { status: 400 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       {
         success: false,
