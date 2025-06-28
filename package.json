@@ -44,7 +44,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20.17.57",
     "@types/react": "^19.1.6",
-    "@types/react-dom": "^19.1.5",
+    "@types/react-dom": "^19.1.6",
     "dotenv-cli": "^8.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from './Button';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ interface SearchInputProps {
   defaultValue?: string;
   autoFocus?: boolean;
   variant?: 'default' | 'compact';
+  initialSearchParams?: URLSearchParams;
 }
 
 export function SearchInput({
@@ -21,10 +22,21 @@ export function SearchInput({
   defaultValue = '',
   autoFocus = false,
   variant = 'default',
+  initialSearchParams,
 }: SearchInputProps) {
   const [searchQuery, setSearchQuery] = useState(defaultValue);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Only access searchParams on the client
+  const currentSearchParams = useMemo(() => {
+    return isClient ? searchParams : (initialSearchParams || new URLSearchParams());
+  }, [isClient, searchParams, initialSearchParams]);
 
   const handleSearch = useCallback(() => {
     const trimmedQuery = searchQuery.trim();
@@ -35,7 +47,7 @@ export function SearchInput({
     }
 
     // Default behavior: update URL search params
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(currentSearchParams);
 
     if (trimmedQuery) {
       params.set('search', trimmedQuery);
@@ -47,7 +59,7 @@ export function SearchInput({
     params.delete('page');
 
     router.push(`/articles?${params.toString()}`);
-  }, [searchQuery, onSearch, router, searchParams]);
+  }, [searchQuery, onSearch, router, currentSearchParams]);
 
   const handleClear = useCallback(() => {
     setSearchQuery('');
@@ -58,12 +70,12 @@ export function SearchInput({
     }
 
     // Default behavior: clear search param from URL
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(currentSearchParams);
     params.delete('search');
     params.delete('page');
 
     router.push(`/articles?${params.toString()}`);
-  }, [onSearch, router, searchParams]);
+  }, [onSearch, router, currentSearchParams]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {

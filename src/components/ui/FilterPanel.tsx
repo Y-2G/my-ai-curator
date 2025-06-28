@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Select } from './Select';
 import { Button } from './Button';
@@ -27,6 +27,12 @@ interface FilterPanelProps {
   tags?: Tag[];
   showSortOptions?: boolean;
   variant?: 'full' | 'compact';
+  initialValues?: {
+    category?: string;
+    tag?: string;
+    sort?: string;
+    order?: string;
+  };
 }
 
 export function FilterPanel({
@@ -35,20 +41,44 @@ export function FilterPanel({
   tags = [],
   showSortOptions = true,
   variant = 'full',
+  initialValues = {},
 }: FilterPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isClient, setIsClient] = useState(false);
 
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-  const [selectedTag, setSelectedTag] = useState(searchParams.get('tag') || '');
-  const [selectedSort, setSelectedSort] = useState(searchParams.get('sort') || 'createdAt');
-  const [selectedOrder, setSelectedOrder] = useState(searchParams.get('order') || 'desc');
+  const [selectedCategory, setSelectedCategory] = useState(initialValues.category || '');
+  const [selectedTag, setSelectedTag] = useState(initialValues.tag || '');
+  const [selectedSort, setSelectedSort] = useState(initialValues.sort || 'createdAt');
+  const [selectedOrder, setSelectedOrder] = useState(initialValues.order || 'desc');
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Only access searchParams on the client
+  const currentSearchParams = useMemo(() => {
+    if (!isClient) {
+      return new URLSearchParams();
+    }
+    return searchParams;
+  }, [isClient, searchParams]);
+  
+  // Update state when searchParams change (client-side navigation)
+  useEffect(() => {
+    if (isClient) {
+      setSelectedCategory(searchParams.get('category') || '');
+      setSelectedTag(searchParams.get('tag') || '');
+      setSelectedSort(searchParams.get('sort') || 'createdAt');
+      setSelectedOrder(searchParams.get('order') || 'desc');
+    }
+  }, [isClient, searchParams]);
 
   const isCompact = variant === 'compact';
   const hasActiveFilters = selectedCategory || selectedTag;
 
   const updateUrl = (updates: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(currentSearchParams);
 
     Object.entries(updates).forEach(([key, value]) => {
       if (value) {
@@ -94,7 +124,7 @@ export function FilterPanel({
     setSelectedSort('createdAt');
     setSelectedOrder('desc');
 
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(currentSearchParams);
     params.delete('category');
     params.delete('tag');
     params.delete('sort');

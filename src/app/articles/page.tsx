@@ -101,6 +101,12 @@ async function ArticlesContent({ searchParams }: PageProps) {
               placeholder="記事を検索..."
               defaultValue={params.search || ''}
               className="w-full"
+              initialSearchParams={new URLSearchParams(
+                Object.entries(params).reduce((acc, [key, value]) => {
+                  if (value) acc.push([key, value]);
+                  return acc;
+                }, [] as [string, string][])
+              )}
             />
           </div>
 
@@ -110,6 +116,12 @@ async function ArticlesContent({ searchParams }: PageProps) {
             tags={tagOptions}
             variant="full"
             className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6"
+            initialValues={{
+              category: params.category || '',
+              tag: params.tag || '',
+              sort: params.sort || 'createdAt',
+              order: params.order || 'desc'
+            }}
           />
 
           {/* Results Summary */}
