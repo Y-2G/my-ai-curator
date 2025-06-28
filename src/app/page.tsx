@@ -82,7 +82,7 @@ async function FeaturedArticles() {
 
 async function CategorySection() {
   try {
-    const dbCategories = await CategoryModel.findManyWithCount();
+    const dbCategories = await CategoryModel.findAllWithArticles();
     const categories = dbCategories.map(transformCategoryData);
 
     return (

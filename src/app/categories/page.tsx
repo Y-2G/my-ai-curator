@@ -21,7 +21,7 @@ function transformCategoryData(dbCategory: any): CategoryWithCount {
 
 export default async function CategoriesPage() {
   try {
-    const dbCategories = await CategoryModel.findManyWithCount();
+    const dbCategories = await CategoryModel.findAllWithArticles();
     const categories = dbCategories.map(transformCategoryData);
 
     return (
