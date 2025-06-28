@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Select } from './Select';
 import { Button } from './Button';
@@ -34,11 +34,11 @@ export function FilterPanel({
   categories = [],
   tags = [],
   showSortOptions = true,
-  variant = 'full'
+  variant = 'full',
 }: FilterPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
   const [selectedTag, setSelectedTag] = useState(searchParams.get('tag') || '');
   const [selectedSort, setSelectedSort] = useState(searchParams.get('sort') || 'createdAt');
@@ -49,7 +49,7 @@ export function FilterPanel({
 
   const updateUrl = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams);
-    
+
     Object.entries(updates).forEach(([key, value]) => {
       if (value) {
         params.set(key, value);
@@ -60,7 +60,7 @@ export function FilterPanel({
 
     // Reset to first page when filters change
     params.delete('page');
-    
+
     router.push(`/articles?${params.toString()}`);
   };
 
@@ -93,42 +93,42 @@ export function FilterPanel({
     setSelectedTag('');
     setSelectedSort('createdAt');
     setSelectedOrder('desc');
-    
+
     const params = new URLSearchParams(searchParams);
     params.delete('category');
     params.delete('tag');
     params.delete('sort');
     params.delete('order');
     params.delete('page');
-    
+
     router.push(`/articles?${params.toString()}`);
   };
 
   const categoryOptions = [
     { value: '', label: 'すべてのカテゴリ' },
-    ...categories.map(cat => ({
+    ...categories.map((cat) => ({
       value: cat.id,
-      label: `${cat.name} (${cat.articleCount})`
-    }))
+      label: `${cat.name} (${cat.articleCount})`,
+    })),
   ];
 
   const tagOptions = [
     { value: '', label: 'すべてのタグ' },
-    ...tags.slice(0, 20).map(tag => ({
+    ...tags.slice(0, 20).map((tag) => ({
       value: tag.id,
-      label: `${tag.name} (${tag.articleCount})`
-    }))
+      label: `${tag.name} (${tag.articleCount})`,
+    })),
   ];
 
   const sortOptions = [
     { value: 'createdAt', label: '投稿日時' },
     { value: 'interestScore', label: '興味度' },
-    { value: 'qualityScore', label: '品質' }
+    { value: 'qualityScore', label: '品質' },
   ];
 
   const orderOptions = [
     { value: 'desc', label: '降順' },
-    { value: 'asc', label: '昇順' }
+    { value: 'asc', label: '昇順' },
   ];
 
   if (isCompact) {
@@ -141,7 +141,7 @@ export function FilterPanel({
           placeholder="カテゴリ"
           className="w-auto min-w-32"
         />
-        
+
         <Select
           value={selectedTag}
           onChange={handleTagChange}
@@ -149,7 +149,7 @@ export function FilterPanel({
           placeholder="タグ"
           className="w-auto min-w-32"
         />
-        
+
         {showSortOptions && (
           <>
             <Select
@@ -158,7 +158,7 @@ export function FilterPanel({
               options={sortOptions}
               className="w-auto min-w-24"
             />
-            
+
             <Select
               value={selectedOrder}
               onChange={handleOrderChange}
@@ -167,14 +167,9 @@ export function FilterPanel({
             />
           </>
         )}
-        
+
         {hasActiveFilters && (
-          <Button
-            onClick={clearAllFilters}
-            variant="outline"
-            size="sm"
-            className="text-xs"
-          >
+          <Button onClick={clearAllFilters} size="sm" className="text-xs">
             クリア
           </Button>
         )}
@@ -187,38 +182,34 @@ export function FilterPanel({
       {/* Active Filters */}
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-            フィルタ:
-          </span>
-          
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">フィルタ:</span>
+
           {selectedCategory && (
             <Badge
-              variant="secondary"
               className="cursor-pointer"
               onClick={() => {
                 setSelectedCategory('');
                 updateUrl({ category: null });
               }}
             >
-              {categories.find(c => c.id === selectedCategory)?.name}
+              {categories.find((c) => c.id === selectedCategory)?.name}
               <span className="ml-1">×</span>
             </Badge>
           )}
-          
+
           {selectedTag && (
             <Badge
-              variant="secondary"
               className="cursor-pointer"
               onClick={() => {
                 setSelectedTag('');
                 updateUrl({ tag: null });
               }}
             >
-              {tags.find(t => t.id === selectedTag)?.name}
+              {tags.find((t) => t.id === selectedTag)?.name}
               <span className="ml-1">×</span>
             </Badge>
           )}
-          
+
           <Button
             onClick={clearAllFilters}
             variant="ghost"
@@ -229,7 +220,7 @@ export function FilterPanel({
           </Button>
         </div>
       )}
-      
+
       {/* Filter Controls */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
@@ -243,7 +234,7 @@ export function FilterPanel({
             placeholder="選択してください"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             タグ
@@ -255,29 +246,21 @@ export function FilterPanel({
             placeholder="選択してください"
           />
         </div>
-        
+
         {showSortOptions && (
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 並び順
               </label>
-              <Select
-                value={selectedSort}
-                onChange={handleSortChange}
-                options={sortOptions}
-              />
+              <Select value={selectedSort} onChange={handleSortChange} options={sortOptions} />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 順序
               </label>
-              <Select
-                value={selectedOrder}
-                onChange={handleOrderChange}
-                options={orderOptions}
-              />
+              <Select value={selectedOrder} onChange={handleOrderChange} options={orderOptions} />
             </div>
           </>
         )}

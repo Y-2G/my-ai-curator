@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Input } from './Input';
 import { Button } from './Button';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +20,7 @@ export function SearchInput({
   onSearch,
   defaultValue = '',
   autoFocus = false,
-  variant = 'default'
+  variant = 'default',
 }: SearchInputProps) {
   const [searchQuery, setSearchQuery] = useState(defaultValue);
   const router = useRouter();
@@ -29,7 +28,7 @@ export function SearchInput({
 
   const handleSearch = useCallback(() => {
     const trimmedQuery = searchQuery.trim();
-    
+
     if (onSearch) {
       onSearch(trimmedQuery);
       return;
@@ -37,22 +36,22 @@ export function SearchInput({
 
     // Default behavior: update URL search params
     const params = new URLSearchParams(searchParams);
-    
+
     if (trimmedQuery) {
       params.set('search', trimmedQuery);
     } else {
       params.delete('search');
     }
-    
+
     // Reset to first page when searching
     params.delete('page');
-    
+
     router.push(`/articles?${params.toString()}`);
   }, [searchQuery, onSearch, router, searchParams]);
 
   const handleClear = useCallback(() => {
     setSearchQuery('');
-    
+
     if (onSearch) {
       onSearch('');
       return;
@@ -62,7 +61,7 @@ export function SearchInput({
     const params = new URLSearchParams(searchParams);
     params.delete('search');
     params.delete('page');
-    
+
     router.push(`/articles?${params.toString()}`);
   }, [onSearch, router, searchParams]);
 
@@ -93,7 +92,7 @@ export function SearchInput({
             />
           </svg>
         </div>
-        
+
         <input
           type="text"
           value={searchQuery}
@@ -109,7 +108,7 @@ export function SearchInput({
             isCompact && 'py-1.5 text-xs'
           )}
         />
-        
+
         {searchQuery && (
           <button
             onClick={handleClear}
@@ -127,13 +126,9 @@ export function SearchInput({
           </button>
         )}
       </div>
-      
+
       {!isCompact && (
-        <Button
-          onClick={handleSearch}
-          className="ml-2 px-4 py-2"
-          size="sm"
-        >
+        <Button onClick={handleSearch} className="ml-2 px-4 py-2" size="sm">
           検索
         </Button>
       )}

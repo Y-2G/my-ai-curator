@@ -6,14 +6,10 @@ interface BadgeProps {
   variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
   size?: 'sm' | 'md';
   className?: string;
+  onClick?: () => void;
 }
 
-export function Badge({ 
-  children, 
-  variant = 'default',
-  size = 'md',
-  className 
-}: BadgeProps) {
+export function Badge({ children, variant = 'default', size = 'md', className }: BadgeProps) {
   const variantClasses = {
     default: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
     success: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
@@ -28,12 +24,14 @@ export function Badge({
   };
 
   return (
-    <span className={cn(
-      'inline-flex items-center rounded-full font-medium',
-      variantClasses[variant],
-      sizeClasses[size],
-      className
-    )}>
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full font-medium',
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
+    >
       {children}
     </span>
   );
