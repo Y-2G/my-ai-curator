@@ -14,6 +14,7 @@ export interface ArticleListParams {
   limit?: number;
   categoryId?: string;
   tagId?: string;
+  search?: string;
   sort?: 'createdAt' | 'interestScore' | 'qualityScore';
   order?: 'asc' | 'desc';
 }
@@ -30,6 +31,7 @@ export class ArticleModel {
       limit = 20,
       categoryId,
       tagId,
+      search,
       sort = 'createdAt',
       order = 'desc'
     } = params;
@@ -47,6 +49,50 @@ export class ArticleModel {
       where.articleTags = {
         some: { tagId }
       };
+    }
+
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      where.OR = [
+        {
+          title: {
+            contains: searchTerm,
+            mode: 'insensitive'
+          }
+        },
+        {
+          summary: {
+            contains: searchTerm,
+            mode: 'insensitive'
+          }
+        },
+        {
+          content: {
+            contains: searchTerm,
+            mode: 'insensitive'
+          }
+        },
+        {
+          articleTags: {
+            some: {
+              tag: {
+                name: {
+                  contains: searchTerm,
+                  mode: 'insensitive'
+                }
+              }
+            }
+          }
+        },
+        {
+          category: {
+            name: {
+              contains: searchTerm,
+              mode: 'insensitive'
+            }
+          }
+        }
+      ];
     }
 
     const [articles, total] = await Promise.all([

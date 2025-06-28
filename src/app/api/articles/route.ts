@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const category = searchParams.get('category') || undefined;
     const tag = searchParams.get('tag') || undefined;
+    const search = searchParams.get('search') || undefined;
+    const sort = searchParams.get('sort') as 'createdAt' | 'interestScore' | 'qualityScore' || 'createdAt';
+    const order = searchParams.get('order') as 'asc' | 'desc' || 'desc';
 
     // データベースから記事を取得
     const result = await ArticleModel.findMany({
@@ -23,8 +26,9 @@ export async function GET(request: NextRequest) {
       limit,
       categoryId: category,
       tagId: tag,
-      sort: 'createdAt',
-      order: 'desc',
+      search,
+      sort,
+      order,
     });
 
     // レスポンスデータの整形

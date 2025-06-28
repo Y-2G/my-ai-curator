@@ -3,7 +3,11 @@ import type { Metadata } from 'next';
 import { ArticleList } from '@/components/article/ArticleList';
 import { Pagination } from '@/components/common/Pagination';
 import { Loading } from '@/components/common/Loading';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { FilterPanel } from '@/components/ui/FilterPanel';
 import { ArticleModel, ArticleWithRelations } from '@/lib/db/models/article';
+import { CategoryModel } from '@/lib/db/models/category';
+import { TagModel } from '@/lib/db/models/tag';
 import { Article, SourceType } from '@/lib/types';
 
 interface PageProps {
@@ -11,6 +15,7 @@ interface PageProps {
     page?: string;
     category?: string;
     tag?: string;
+    search?: string;
     sort?: string;
     order?: string;
   }>;
@@ -47,27 +52,89 @@ async function ArticlesContent({ searchParams }: PageProps) {
   try {
     const params = await searchParams;
     const page = parseInt(params.page || '1', 10);
-    const result = await ArticleModel.findMany({
-      page,
-      limit: 12,
-      categoryId: params.category,
-      tagId: params.tag,
-      sort: params.sort as 'createdAt' | 'interestScore' | 'qualityScore',
-      order: params.order as 'asc' | 'desc',
-    });
+    
+    // Fetch data in parallel
+    const [articlesResult, categories, tags] = await Promise.all([
+      ArticleModel.findMany({
+        page,
+        limit: 12,
+        categoryId: params.category,
+        tagId: params.tag,
+        search: params.search,
+        sort: params.sort as 'createdAt' | 'interestScore' | 'qualityScore',
+        order: params.order as 'asc' | 'desc',
+      }),
+      CategoryModel.findAllWithArticles(),
+      TagModel.findPopular(20)
+    ]);
 
-    const articles = result.articles.map(transformArticleData);
+    const articles = articlesResult.articles.map(transformArticleData);
     const pagination = {
-      page: result.page,
-      totalPages: result.totalPages,
-      total: result.total,
+      page: articlesResult.page,
+      totalPages: articlesResult.totalPages,
+      total: articlesResult.total,
       limit: 12,
     };
 
+    // Transform categories and tags for FilterPanel
+    const categoryOptions = categories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      description: cat.description,
+      color: cat.color,
+      articleCount: cat._count.articles
+    }));
+
+    const tagOptions = tags.map(tag => ({
+      id: tag.id,
+      name: tag.name,
+      articleCount: tag._count.articleTags
+    }));
+
     return (
       <>
+        {/* Search and Filter UI */}
+        <div className="mb-8 space-y-6">
+          {/* Search Input */}
+          <div className="md:hidden">
+            <SearchInput
+              placeholder="記事を検索..."
+              defaultValue={params.search || ''}
+              className="w-full"
+            />
+          </div>
+
+          {/* Filter Panel */}
+          <FilterPanel
+            categories={categoryOptions}
+            tags={tagOptions}
+            variant="full"
+            className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6"
+          />
+
+          {/* Results Summary */}
+          <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+            <div>
+              {params.search && (
+                <p>
+                  「<span className="font-medium text-gray-900 dark:text-white">{params.search}</span>」の検索結果
+                </p>
+              )}
+              <p>
+                {pagination.total}件の記事が見つかりました
+                {pagination.totalPages > 1 && (
+                  <span> (ページ {pagination.page}/{pagination.totalPages})</span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Articles List */}
         <ArticleList articles={articles} />
-        {pagination && (
+        
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
           <div className="mt-12">
             <Pagination
               currentPage={pagination.page}

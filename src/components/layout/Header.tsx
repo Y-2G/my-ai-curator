@@ -2,13 +2,18 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { APP_NAME } from '@/lib/constants';
 import { Sheet } from '@/components/ui/Sheet';
+import { SearchInput } from '@/components/ui/SearchInput';
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const router = useRouter();
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const closeSearch = () => setIsSearchOpen(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-300 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-gray-900/95 dark:border-gray-800">
@@ -39,8 +44,19 @@ export function Header() {
           </div>
 
           <div className="flex items-center space-x-4">
+            {/* Desktop Search */}
+            <div className="hidden md:block">
+              <SearchInput
+                variant="compact"
+                placeholder="検索..."
+                className="w-64"
+              />
+            </div>
+
+            {/* Mobile Search Button */}
             <button
-              className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              onClick={() => setIsSearchOpen(true)}
+              className="md:hidden p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
               aria-label="Search"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,23 +138,70 @@ export function Header() {
 
           {/* Search Section */}
           <div className="border-t border-gray-200 dark:border-gray-800 px-6 py-4">
-            <button
-              onClick={() => {
+            <SearchInput
+              placeholder="記事を検索..."
+              onSearch={(query) => {
                 closeMobileMenu();
-                // TODO: Implement search functionality
+                if (query.trim()) {
+                  router.push(`/articles?search=${encodeURIComponent(query)}`);
+                } else {
+                  router.push('/articles');
+                }
               }}
-              className="flex w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+              autoFocus
+            />
+          </div>
+        </div>
+      </Sheet>
+
+      {/* Mobile Search Modal */}
+      <Sheet isOpen={isSearchOpen} onClose={closeSearch}>
+        <div className="flex h-full flex-col">
+          {/* Search Header */}
+          <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              記事を検索
+            </h2>
+            <button
+              onClick={closeSearch}
+              className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              aria-label="Close search"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
-              検索
             </button>
+          </div>
+
+          {/* Search Content */}
+          <div className="flex-1 px-6 py-6">
+            <SearchInput
+              placeholder="キーワードを入力..."
+              onSearch={(query) => {
+                closeSearch();
+                if (query.trim()) {
+                  router.push(`/articles?search=${encodeURIComponent(query)}`);
+                } else {
+                  router.push('/articles');
+                }
+              }}
+              autoFocus
+              className="mb-4"
+            />
+            
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              <p>検索のヒント:</p>
+              <ul className="mt-2 space-y-1 list-disc list-inside">
+                <li>記事のタイトル、概要、内容から検索します</li>
+                <li>カテゴリやタグ名も検索対象です</li>
+                <li>複数のキーワードを入力して検索できます</li>
+              </ul>
+            </div>
           </div>
         </div>
       </Sheet>
