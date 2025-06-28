@@ -88,17 +88,6 @@ export default function LoginPage() {
               {loading ? 'ログイン中...' : 'ログイン'}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <div className="bg-blue-50 border border-blue-200 rounded p-4">
-              <p className="text-blue-800 font-semibold text-sm">デモ用ログイン情報</p>
-              <p className="text-blue-600 text-xs mt-1">
-                メール: 2g.4423@gmail.com
-                <br />
-                パスワード: test
-              </p>
-            </div>
-          </div>
         </Card>
 
         <div className="text-center">
